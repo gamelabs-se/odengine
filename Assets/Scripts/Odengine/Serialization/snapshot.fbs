@@ -1,0 +1,63 @@
+// Odengine Snapshot Format (FlatBuffers)
+// For large-scale deterministic simulation snapshots
+// Zero-copy deserialization, optimal for read-heavy workloads
+
+namespace Odengine.Serialization;
+
+// String table for deduplication
+table StringTable {
+  strings:[string];
+}
+
+// Node in the graph
+table Node {
+  id_index:uint;           // index into string table
+  name_index:uint;         // index into string table
+  parent_id_index:uint;    // index into string table (0 = no parent)
+}
+
+// Edge between nodes
+table Edge {
+  from_node_index:uint;
+  to_node_index:uint;
+  resistance:float;
+  tag_indices:[uint];      // indices into string table
+}
+
+// Amplitude entry (sparse storage)
+table AmplitudeEntry {
+  node_index:uint;
+  amplitude:float;
+}
+
+// Channel within a field (e.g., "water", "rifle", "influence_faction_A")
+table Channel {
+  channel_id_index:uint;   // index into string table
+  amplitudes:[AmplitudeEntry];
+}
+
+// A scalar field (e.g., "availability", "demand", "power")
+table ScalarField {
+  field_id_index:uint;     // index into string table
+  profile_id_index:uint;   // index into string table
+  channels:[Channel];
+}
+
+// Complete world snapshot at a specific tick
+table WorldSnapshot {
+  tick:int64;
+  world_time:double;
+  version:uint16;
+  
+  string_table:StringTable;
+  nodes:[Node];
+  edges:[Edge];
+  fields:[ScalarField];
+  
+  // Optional: hash for integrity check
+  content_hash:string;
+}
+
+root_type WorldSnapshot;
+file_identifier "ODSN";  // Odengine SNapshot
+file_extension "odsnap";
