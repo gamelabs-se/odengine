@@ -17,5 +17,11 @@ namespace Odengine.Economy
             DisplayName = displayName;
             BaseValue = baseValue;
         }
+
+        // Convenience constructor: use itemId as displayName
+        public ItemDef(string itemId, float baseValue)
+            : this(itemId, itemId, baseValue)
+        {
+        }
     }
 }

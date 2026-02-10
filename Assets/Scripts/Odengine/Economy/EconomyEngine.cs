@@ -155,5 +155,34 @@ namespace Odengine.Economy
         /// Get all registered items
         /// </summary>
         public IReadOnlyDictionary<string, ItemDef> GetAllItems() => _items;
+
+        // Convenience accessors for tests and external systems
+
+        public ScalarField AvailabilityField => Availability;
+
+        public void SetAvailability(string itemId, string nodeId, float value)
+        {
+            Availability.For(itemId).SetAmp(nodeId, value);
+        }
+
+        public float GetAvailability(string itemId, string nodeId)
+        {
+            return Availability.For(itemId).GetAmp(nodeId);
+        }
+
+        public void ModifyAvailability(string itemId, string nodeId, float delta)
+        {
+            Availability.For(itemId).AddAmp(nodeId, delta);
+        }
+
+        public float SamplePrice(string itemId, string nodeId)
+        {
+            return GetPrice(itemId, nodeId);
+        }
+
+        public void ProcessTrade(TradeIntent intent)
+        {
+            ApplyTrade(intent.ItemId, intent.NodeId, intent.Quantity);
+        }
     }
 }

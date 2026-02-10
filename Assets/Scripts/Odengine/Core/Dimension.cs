@@ -71,5 +71,18 @@ namespace Odengine.Core
             _fields.Clear();
             // Graph has its own clear if needed
         }
+
+        public void Step(float dt)
+        {
+            // Tick all scalar fields
+            foreach (var field in _fields.Values)
+            {
+                var scalarField = field as ScalarField;
+                if (scalarField != null)
+                {
+                    FieldPropagator.Step(scalarField, Graph, dt);
+                }
+            }
+        }
     }
 }
