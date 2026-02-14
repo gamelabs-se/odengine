@@ -1,0 +1,6 @@
+<linker>
+    <!-- Exclude test assemblies from Burst compilation -->
+    <assembly fullname="Odengine.Tests" preserve="all">
+        <type fullname="*" preserve="all" />
+    </assembly>
+</linker>

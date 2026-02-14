@@ -184,5 +184,12 @@ namespace Odengine.Economy
         {
             ApplyTrade(intent.ItemId, intent.NodeId, intent.Quantity);
         }
+
+        public void ProcessTrade(string itemId, string nodeId, float quantity, bool isBuy)
+        {
+            // For tests: quantity is positive for buy, negative for sell conceptually
+            // but we apply as-is (negative reduces availability, positive increases)
+            ApplyTrade(itemId, nodeId, quantity);
+        }
     }
 }

@@ -11,15 +11,15 @@ namespace Odengine.Core
     /// </summary>
     public sealed class Dimension
     {
-        private readonly Dictionary<string, OdField> _fields;
+        private readonly Dictionary<string, object> _fields;
         public readonly OdNodeGraph Graph;
 
-        public IReadOnlyDictionary<string, OdField> Fields => _fields;
+        public IReadOnlyDictionary<string, object> Fields => _fields;
 
         public Dimension()
         {
             Graph = new OdNodeGraph();
-            _fields = new Dictionary<string, OdField>();
+            _fields = new Dictionary<string, object>();
         }
 
         public OdNode AddNode(string id, string name = null)
@@ -29,13 +29,16 @@ namespace Odengine.Core
             return node;
         }
 
+        public OdEdge AddEdge(string fromId, string toId, float resistance = 1.0f, EdgeTags tags = EdgeTags.None, bool bidirectional = false)
+        {
+            return Graph.AddEdge(fromId, toId, resistance, tags, bidirectional);
+        }
+
         public OdNode GetNode(string id) => Graph.GetNode(id);
 
-        public OdEdge AddEdge(string fromId, string toId, float resistance = 1f)
+        public OdEdge AddEdge(string fromId, string toId, float resistance = 1f, string tags = "")
         {
-            Graph.AddEdge(fromId, toId, resistance);
-            // Return the edge (we need to expose it from Graph if needed)
-            return null; // Simplified for now
+            return Graph.AddEdge(fromId, toId, resistance, tags);
         }
 
         public OdField AddField(string fieldId, FieldProfile profile)
@@ -54,8 +57,8 @@ namespace Odengine.Core
 
         public OdField GetOrCreateField(string fieldId, FieldProfile profile = null)
         {
-            if (_fields.TryGetValue(fieldId, out var existing))
-                return existing;
+            if (_fields.TryGetValue(fieldId, out var existing) && existing is OdField odField)
+                return odField;
 
             var field = new OdField(fieldId, profile ?? new FieldProfile("default"));
             _fields[fieldId] = field;
@@ -64,7 +67,15 @@ namespace Odengine.Core
 
         public IReadOnlyDictionary<string, OdNode> Nodes => Graph.Nodes;
 
-        public OdField GetField(string fieldId) => _fields.TryGetValue(fieldId, out var field) ? field : null;
+        public OdField GetField(string fieldId)
+        {
+            return _fields.TryGetValue(fieldId, out var field) && field is OdField odField ? odField : null;
+        }
+
+        public ScalarField GetScalarField(string fieldId)
+        {
+            return _fields.TryGetValue(fieldId, out var field) && field is ScalarField scalarField ? scalarField : null;
+        }
 
         public void Clear()
         {

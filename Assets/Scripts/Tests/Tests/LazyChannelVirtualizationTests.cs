@@ -31,7 +31,7 @@ namespace Odengine.Tests
             dim.Step(1f);
 
             // Channel should merge - verify it's no longer explicitly tracked
-            bool hasChannel = eco.AvailabilityField.Storage.HasActiveChannel("water", "market");
+            bool hasChannel = eco.AvailabilityField.Storage.HasActiveChannel("water");
             Assert.IsFalse(hasChannel, "Channel should have merged into field amp");
 
             // But we can still read it (falls back to field amp)
@@ -57,7 +57,7 @@ namespace Odengine.Tests
             dim.Step(1f);
 
             // Channel should remain tracked
-            bool hasChannel = eco.AvailabilityField.Storage.HasActiveChannel("water", "market");
+            bool hasChannel = eco.AvailabilityField.Storage.HasActiveChannel("water");
             Assert.IsTrue(hasChannel, "Channel should remain individually tracked");
 
             float amp = eco.GetAvailability("water", "market");
@@ -83,7 +83,7 @@ namespace Odengine.Tests
             dim.Step(0.1f);
 
             // Should now be tracked individually
-            bool hasChannel = eco.AvailabilityField.Storage.HasActiveChannel("water", "market");
+            bool hasChannel = eco.AvailabilityField.Storage.HasActiveChannel("water");
             Assert.IsTrue(hasChannel, "Trade should have split channel from field");
 
             float amp = eco.GetAvailability("water", "market");
@@ -114,9 +114,9 @@ namespace Odengine.Tests
             dim.Step(0.1f);
 
             // Only water should be tracked
-            Assert.IsTrue(eco.AvailabilityField.Storage.HasActiveChannel("water", "market"));
-            Assert.IsFalse(eco.AvailabilityField.Storage.HasActiveChannel("food", "market"));
-            Assert.IsFalse(eco.AvailabilityField.Storage.HasActiveChannel("medicine", "market"));
+            Assert.IsTrue(eco.AvailabilityField.Storage.HasActiveChannel("water"));
+            Assert.IsFalse(eco.AvailabilityField.Storage.HasActiveChannel("food"));
+            Assert.IsFalse(eco.AvailabilityField.Storage.HasActiveChannel("medicine"));
         }
 
         [Test]

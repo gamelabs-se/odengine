@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Odengine.Core;
 using Odengine.Economy;
 using Odengine.Fields;
+using Odengine.Graph;
 
 namespace Odengine.Tests
 {
@@ -20,8 +21,8 @@ namespace Odengine.Tests
             dim.AddNode("port");
 
             // Ocean edge has high resistance + ocean tag
-            dim.AddEdge("island1", "island2", 10f, EdgeTags.Ocean);
-            dim.AddEdge("island1", "port", 1f, EdgeTags.None);
+            dim.AddEdge("island1", "island2", 10f, "ocean");
+            dim.AddEdge("island1", "port", 1f, "");
 
             var eco = new EconomyEngine(dim);
             var water = new ItemDef("water", 10f);
@@ -51,8 +52,8 @@ namespace Odengine.Tests
             dim.AddNode("city2");
             dim.AddNode("village");
 
-            dim.AddEdge("city1", "city2", 1f, EdgeTags.Road);
-            dim.AddEdge("city1", "village", 1f, EdgeTags.None);
+            dim.AddEdge("city1", "city2", 1f, "road");
+            dim.AddEdge("city1", "village", 1f, "");
 
             var eco = new EconomyEngine(dim);
             var food = new ItemDef("food", 15f);
@@ -80,7 +81,7 @@ namespace Odengine.Tests
             dim.AddNode("dest");
 
             // Edge with multiple tags
-            dim.AddEdge("source", "dest", 5f, EdgeTags.Ocean | EdgeTags.Border);
+            dim.AddEdge("source", "dest", 5f, "ocean,border");
 
             var eco = new EconomyEngine(dim);
             var item = new ItemDef("test", 10f);
@@ -107,8 +108,8 @@ namespace Odengine.Tests
             dim.AddNode("dest1");
             dim.AddNode("dest2");
 
-            dim.AddEdge("source", "dest1", 5f, EdgeTags.Ocean);
-            dim.AddEdge("source", "dest2", 5f, EdgeTags.Road);
+            dim.AddEdge("source", "dest1", 5f, "ocean");
+            dim.AddEdge("source", "dest2", 5f, "road");
 
             var eco = new EconomyEngine(dim);
             var item = new ItemDef("test", 10f);

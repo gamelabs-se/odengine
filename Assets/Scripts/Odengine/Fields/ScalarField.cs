@@ -67,6 +67,11 @@ namespace Odengine.Fields
         }
 
         /// <summary>
+        /// Set base amplitude (alias for tests)
+        /// </summary>
+        public void SetBaseAmplitude(string nodeId, float amp) => SetFieldAmp(nodeId, amp);
+
+        /// <summary>
         /// Get a "virtual field" view for a specific channel.
         /// This is the "each item is a field" facade that keeps the mental model clean.
         /// </summary>

@@ -46,9 +46,9 @@ namespace Odengine.Graph
         }
 
         /// <summary>
-        /// Add an edge and return it. Can optionally add reverse edge for undirected behavior.
+        /// Add an edge and return it. Tags can be comma-separated string or EdgeTags flags.
         /// </summary>
-        public OdEdge AddEdge(string fromId, string toId, float resistance = 1.0f, bool bidirectional = false)
+        public OdEdge AddEdge(string fromId, string toId, float resistance = 1.0f, string tags = "")
         {
             if (!_nodes.TryGetValue(fromId, out var from))
                 throw new ArgumentException($"Source node {fromId} not found");
@@ -56,12 +56,94 @@ namespace Odengine.Graph
                 throw new ArgumentException($"Target node {toId} not found");
 
             var edge = new OdEdge(from, to, resistance);
+            
+            // Apply tags from string
+            if (!string.IsNullOrEmpty(tags))
+            {
+                var tagList = tags.Split(',');
+                foreach (var tag in tagList)
+                {
+                    var trimmed = tag.Trim();
+                    if (!string.IsNullOrEmpty(trimmed))
+                        edge.AddTag(trimmed);
+                }
+            }
+            
+            from.AddEdge(edge);
+            _edges.Add(edge);
+            return edge;
+        }
+
+        /// <summary>
+        /// Add bidirectional edges (convenience method)
+        /// </summary>
+        public void AddBidirectionalEdge(string fromId, string toId, float resistance = 1.0f, string tags = "")
+        {
+            AddEdge(fromId, toId, resistance, tags);
+            AddEdge(toId, fromId, resistance, tags);
+        }
+        
+        /// <summary>
+        /// Add edge with EdgeTags enum (convenience)
+        /// </summary>
+        public OdEdge AddEdgeWithTags(string fromId, string toId, float resistance, EdgeTags tagFlags)
+        {
+            if (!_nodes.TryGetValue(fromId, out var from))
+                throw new ArgumentException($"Source node {fromId} not found");
+            if (!_nodes.TryGetValue(toId, out var to))
+                throw new ArgumentException($"Target node {toId} not found");
+
+            var edge = new OdEdge(from, to, resistance);
+            
+            // Apply tags from enum flags
+            if (tagFlags != EdgeTags.None)
+            {
+                if ((tagFlags & EdgeTags.Ocean) != 0) edge.AddTag("ocean");
+                if ((tagFlags & EdgeTags.Road) != 0) edge.AddTag("road");
+                if ((tagFlags & EdgeTags.Wormhole) != 0) edge.AddTag("wormhole");
+                if ((tagFlags & EdgeTags.Border) != 0) edge.AddTag("border");
+            }
+            
+            from.AddEdge(edge);
+            _edges.Add(edge);
+            return edge;
+        }
+
+        [Obsolete("Use AddEdge or AddEdgeWithTags instead")]
+        private OdEdge AddEdge_OLD(string fromId, string toId, float resistance = 1.0f, EdgeTags tags = EdgeTags.None, bool bidirectional = false)
+        {
+            if (!_nodes.TryGetValue(fromId, out var from))
+                throw new ArgumentException($"Source node {fromId} not found");
+            if (!_nodes.TryGetValue(toId, out var to))
+                throw new ArgumentException($"Target node {toId} not found");
+
+            var edge = new OdEdge(from, to, resistance);
+            
+            // Apply tags
+            if (tags != EdgeTags.None)
+            {
+                if ((tags & EdgeTags.Ocean) != 0) edge.AddTag("ocean");
+                if ((tags & EdgeTags.Road) != 0) edge.AddTag("road");
+                if ((tags & EdgeTags.Wormhole) != 0) edge.AddTag("wormhole");
+                if ((tags & EdgeTags.Border) != 0) edge.AddTag("border");
+            }
+            
             from.AddEdge(edge);
             _edges.Add(edge);
 
             if (bidirectional)
             {
                 var reverseEdge = new OdEdge(to, from, resistance);
+                
+                // Copy tags to reverse edge
+                if (tagFlags != EdgeTags.None)
+                {
+                    if ((tagFlags & EdgeTags.Ocean) != 0) reverseEdge.AddTag("ocean");
+                    if ((tagFlags & EdgeTags.Road) != 0) reverseEdge.AddTag("road");
+                    if ((tagFlags & EdgeTags.Wormhole) != 0) reverseEdge.AddTag("wormhole");
+                    if ((tagFlags & EdgeTags.Border) != 0) reverseEdge.AddTag("border");
+                }
+                
                 to.AddEdge(reverseEdge);
                 _edges.Add(reverseEdge);
             }

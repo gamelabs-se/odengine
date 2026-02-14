@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Odengine.Core;
 using Odengine.Economy;
 using Odengine.Fields;
+using Odengine.Graph;
 
 namespace Odengine.Tests
 {
@@ -94,7 +95,7 @@ namespace Odengine.Tests
             var dim = new Dimension();
             dim.AddNode("market1");
             dim.AddNode("market2");
-            dim.AddEdge("market1", "market2", 5f, EdgeTags.None);
+            dim.AddEdge("market1", "market2", 5f, "");
             
             var eco = new EconomyEngine(dim);
             var water = new ItemDef("water", 10f);
@@ -127,7 +128,7 @@ namespace Odengine.Tests
             var dim = new Dimension();
             dim.AddNode("market1");
             dim.AddNode("market2");
-            dim.AddEdge("market1", "market2", 1f, EdgeTags.None);
+            dim.AddEdge("market1", "market2", 1f, "");
             
             var eco = new EconomyEngine(dim);
             var water = new ItemDef("water", 10f);

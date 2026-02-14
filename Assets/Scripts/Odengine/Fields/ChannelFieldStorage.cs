@@ -19,6 +19,8 @@ namespace Odengine.Fields
 
         public bool HasChannel(string channelId) => _ampByChannel.ContainsKey(channelId);
 
+        public bool HasActiveChannel(string channelId) => _activeChannels.Contains(channelId);
+
         public void TouchChannel(string channelId)
         {
             _activeChannels.Add(channelId);
