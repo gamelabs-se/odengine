@@ -14,15 +14,15 @@ namespace Odengine.Fields
     /// </summary>
     public static class FieldPropagator
     {
-        public static Dictionary<string, float> Step(OdField field, OdNodeGraph graph, float dt)
+        public static Dictionary<string, float> Step(Field field, OdNodeGraph graph, float dt)
         {
             var deltas = new Dictionary<string, float>();
-            
+
             // Process nodes in sorted order for determinism
             foreach (var nodeId in graph.GetSortedNodeIds())
             {
                 if (!graph.TryGetNode(nodeId, out var node)) continue;
-                
+
                 float sourceAmp = field.GetAmplitude(nodeId);
                 if (sourceAmp < field.Profile.MinAmp) continue;
 
@@ -38,7 +38,7 @@ namespace Odengine.Fields
                     if (transmitted < field.Profile.MinAmp) continue;
 
                     AccumulateDelta(deltas, edge.To.Id, transmitted);
-                    
+
                     // If diffusion mode, subtract from source
                     if (field.Profile.Mode == ConservationMode.Diffusion)
                     {
@@ -62,7 +62,7 @@ namespace Odengine.Fields
             float baseResistance = edge.Resistance * profile.EdgeResistanceScale;
             float tagMultiplier = profile.GetTagMultiplier(edge.Tags);
             float R_eff = baseResistance * tagMultiplier;
-            
+
             float attenuation = MathF.Exp(-R_eff);
             return sourceAmp * attenuation * profile.PropagationRate * dt;
         }
@@ -78,7 +78,7 @@ namespace Odengine.Fields
             foreach (var nodeId in graph.GetSortedNodeIds())
             {
                 if (!graph.TryGetNode(nodeId, out var node)) continue;
-                
+
                 float sourceAmp = field.GetFieldAmp(nodeId);
                 if (sourceAmp < field.Profile.MinAmp) continue;
 
@@ -94,7 +94,7 @@ namespace Odengine.Fields
                     if (transmitted < field.Profile.MinAmp) continue;
 
                     AccumulateDelta(baseDeltas, edge.To.Id, transmitted);
-                    
+
                     if (field.Profile.Mode == ConservationMode.Diffusion)
                         AccumulateDelta(baseDeltas, nodeId, -transmitted);
                 }
@@ -112,11 +112,11 @@ namespace Odengine.Fields
             foreach (var channelId in channels)
             {
                 var channelDeltas = new Dictionary<string, float>();
-                
+
                 foreach (var nodeId in graph.GetSortedNodeIds())
                 {
                     if (!graph.TryGetNode(nodeId, out var node)) continue;
-                    
+
                     float sourceAmp = field.Storage.Get(channelId, nodeId);
                     if (sourceAmp < field.Profile.MinAmp) continue;
 
@@ -137,14 +137,14 @@ namespace Odengine.Fields
                         float baseResistance = edge.Resistance * resScale;
                         float tagMultiplier = field.Profile.GetTagMultiplier(edge.Tags);
                         float R_eff = baseResistance * tagMultiplier;
-                        
+
                         float attenuation = MathF.Exp(-R_eff);
                         float transmitted = sourceAmp * attenuation * propRate * dt;
-                        
+
                         if (transmitted < field.Profile.MinAmp) continue;
 
                         AccumulateDelta(channelDeltas, edge.To.Id, transmitted);
-                        
+
                         if (field.Profile.Mode == ConservationMode.Diffusion)
                             AccumulateDelta(channelDeltas, nodeId, -transmitted);
                     }

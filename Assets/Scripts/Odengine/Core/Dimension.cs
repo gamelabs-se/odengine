@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Odengine.Fields;
 using Odengine.Graph;
@@ -11,66 +12,48 @@ namespace Odengine.Core
     /// </summary>
     public sealed class Dimension
     {
-        private readonly Dictionary<string, object> _fields;
-        public readonly OdNodeGraph Graph;
+        private readonly Dictionary<string, Field> _fields;
+        public readonly NodeGraph Graph;
 
-        public IReadOnlyDictionary<string, object> Fields => _fields;
+        public IReadOnlyDictionary<string, Field> Fields => _fields;
 
         public Dimension()
         {
-            Graph = new OdNodeGraph();
-            _fields = new Dictionary<string, object>();
+            Graph = new NodeGraph();
+            _fields = new Dictionary<string, Field>(StringComparer.Ordinal);
         }
 
-        public OdNode AddNode(string id, string name = null)
+        public Node AddNode(string id, string name = null) => Graph.AddNode(id, name);
+
+        public Edge AddEdge(string fromId, string toId, float resistance = 1.0f, string tags = "", bool bidirectional = false)
         {
-            var node = new OdNode(id, name);
-            Graph.AddNode(node);
-            return node;
+            var edge = Graph.AddEdge(fromId, toId, resistance, tags);
+            if (bidirectional)
+                Graph.AddEdge(toId, fromId, resistance, tags);
+            return edge;
         }
 
-        public OdEdge AddEdge(string fromId, string toId, float resistance = 1.0f, EdgeTags tags = EdgeTags.None, bool bidirectional = false)
-        {
-            return Graph.AddEdge(fromId, toId, resistance, tags, bidirectional);
-        }
-
-        public OdNode GetNode(string id) => Graph.GetNode(id);
-
-        public OdEdge AddEdge(string fromId, string toId, float resistance = 1f, string tags = "")
-        {
-            return Graph.AddEdge(fromId, toId, resistance, tags);
-        }
-
-        public OdField AddField(string fieldId, FieldProfile profile)
-        {
-            var field = new OdField(fieldId, profile);
-            _fields[fieldId] = field;
-            return field;
-        }
+        public Node GetNode(string id) => Graph.GetNode(id);
 
         public ScalarField AddScalarField(string fieldId, FieldProfile profile)
         {
             var field = new ScalarField(fieldId, profile);
-            _fields[fieldId] = (OdField)(object)field; // Temporary bridge
-            return field;
-        }
-
-        public OdField GetOrCreateField(string fieldId, FieldProfile profile = null)
-        {
-            if (_fields.TryGetValue(fieldId, out var existing) && existing is OdField odField)
-                return odField;
-
-            var field = new OdField(fieldId, profile ?? new FieldProfile("default"));
             _fields[fieldId] = field;
             return field;
         }
 
-        public IReadOnlyDictionary<string, OdNode> Nodes => Graph.Nodes;
-
-        public OdField GetField(string fieldId)
+        public ScalarField GetOrCreateScalarField(string fieldId, FieldProfile profile = null)
         {
-            return _fields.TryGetValue(fieldId, out var field) && field is OdField odField ? odField : null;
+            if (_fields.TryGetValue(fieldId, out var existing) && existing is ScalarField scalarField)
+                return scalarField;
+
+            if (profile == null)
+                throw new ArgumentException($"ScalarField '{fieldId}' does not exist and no profile provided");
+
+            return AddScalarField(fieldId, profile);
         }
+
+        public IReadOnlyDictionary<string, Node> Nodes => Graph.Nodes;
 
         public ScalarField GetScalarField(string fieldId)
         {
@@ -80,16 +63,13 @@ namespace Odengine.Core
         public void Clear()
         {
             _fields.Clear();
-            // Graph has its own clear if needed
         }
 
         public void Step(float dt)
         {
-            // Tick all scalar fields
             foreach (var field in _fields.Values)
             {
-                var scalarField = field as ScalarField;
-                if (scalarField != null)
+                if (field is ScalarField scalarField)
                 {
                     FieldPropagator.Step(scalarField, Graph, dt);
                 }

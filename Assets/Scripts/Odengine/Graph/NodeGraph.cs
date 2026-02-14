@@ -136,12 +136,12 @@ namespace Odengine.Graph
                 var reverseEdge = new OdEdge(to, from, resistance);
                 
                 // Copy tags to reverse edge
-                if (tagFlags != EdgeTags.None)
+                if (tags != EdgeTags.None)
                 {
-                    if ((tagFlags & EdgeTags.Ocean) != 0) reverseEdge.AddTag("ocean");
-                    if ((tagFlags & EdgeTags.Road) != 0) reverseEdge.AddTag("road");
-                    if ((tagFlags & EdgeTags.Wormhole) != 0) reverseEdge.AddTag("wormhole");
-                    if ((tagFlags & EdgeTags.Border) != 0) reverseEdge.AddTag("border");
+                    if ((tags & EdgeTags.Ocean) != 0) reverseEdge.AddTag("ocean");
+                    if ((tags & EdgeTags.Road) != 0) reverseEdge.AddTag("road");
+                    if ((tags & EdgeTags.Wormhole) != 0) reverseEdge.AddTag("wormhole");
+                    if ((tags & EdgeTags.Border) != 0) reverseEdge.AddTag("border");
                 }
                 
                 to.AddEdge(reverseEdge);

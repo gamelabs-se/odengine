@@ -12,9 +12,9 @@ namespace Odengine.Fields
     /// - Channels are "realized layers" when they deviate from field amplitude
     /// - When channel amp gets close to field amp, it merges back (lazy virtualization)
     /// </summary>
-    public sealed class ScalarField
+    public sealed class ScalarField : Field
     {
-        public string FieldId { get; }
+        public override string FieldId { get; }
         public FieldProfile Profile { get; }
         public ChannelFieldStorage Storage { get; } = new ChannelFieldStorage();
 

@@ -29,7 +29,7 @@ namespace Odengine.Examples
             var edgeAB = world.AddEdge("city_a", "city_b", resistance: 1f);
             var edgeBO = world.AddEdge("city_b", "ocean", resistance: 10f);
             edgeBO.AddTag("ocean"); // Tag this as ocean
-            
+
             var edgeOC = world.AddEdge("ocean", "city_c", resistance: 10f);
             edgeOC.AddTag("ocean");
 
@@ -124,7 +124,7 @@ namespace Odengine.Examples
             Debug.Log("4. Price = f(availability, price_pressure, base_value).");
         }
 
-        void LogFieldState(string name, OdField field)
+        void LogFieldState(string name, Field field)
         {
             Debug.Log($"{name} Field:");
             foreach (var (nodeId, amp) in field.GetAllAmplitudes())
