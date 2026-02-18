@@ -30,6 +30,12 @@ namespace Odengine.Tests
             var dim1 = CreateTestDimension("A", "B", "C");
             var dim2 = CreateTestDimension("C", "B", "A"); // Reversed insertion order
 
+            // Verify edges exist
+            var edgesFromA1 = dim1.Graph.GetOutEdgesSorted("A");
+            UnityEngine.Debug.Log($"Dim1: A has {edgesFromA1.Count} edges");
+            var edgesFromA2 = dim2.Graph.GetOutEdgesSorted("A");
+            UnityEngine.Debug.Log($"Dim2: A has {edgesFromA2.Count} edges");
+
             var profile = new FieldProfile("test") { PropagationRate = 0.5f, EdgeResistanceScale = 0.1f };
             var field1 = dim1.AddField("test", profile);
             var field2 = dim2.AddField("test", profile);
@@ -38,9 +44,15 @@ namespace Odengine.Tests
             field1.SetLogAmp("A", "water", 2.0f);
             field2.SetLogAmp("A", "water", 2.0f);
 
+            UnityEngine.Debug.Log($"Field1 initial logAmp at A: {field1.GetLogAmp("A", "water")}");
+            UnityEngine.Debug.Log($"Field2 initial logAmp at A: {field2.GetLogAmp("A", "water")}");
+
             // Propagate
             Propagator.Step(dim1, field1, 1.0f);
             Propagator.Step(dim2, field2, 1.0f);
+
+            UnityEngine.Debug.Log($"Field1 after prop - B: {field1.GetMultiplier("B", "water")}, C: {field1.GetMultiplier("C", "water")}");
+            UnityEngine.Debug.Log($"Field2 after prop - B: {field2.GetMultiplier("B", "water")}, C: {field2.GetMultiplier("C", "water")}");
 
             // Results must match exactly
             float mult1B = field1.GetMultiplier("B", "water");

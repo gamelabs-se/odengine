@@ -30,17 +30,21 @@ namespace Odengine.Fields
 
             // Process each active channel
             var channels = field.GetActiveChannelIdsSorted();
+            UnityEngine.Debug.Log($"[Propagator] Active channels: {channels.Count}");
             foreach (var channelId in channels)
             {
                 var activeNodes = field.GetActiveNodeIdsSortedForChannel(channelId);
+                UnityEngine.Debug.Log($"[Propagator] Channel '{channelId}' has {activeNodes.Count} active nodes");
 
                 foreach (var nodeId in activeNodes)
                 {
                     float sourceLogAmp = field.GetLogAmp(nodeId, channelId);
+                    UnityEngine.Debug.Log($"[Propagator] Node '{nodeId}' logAmp: {sourceLogAmp}");
                     if (MathF.Abs(sourceLogAmp) < 0.0001f)
                         continue;
 
                     var edges = graph.GetOutEdgesSorted(nodeId);
+                    UnityEngine.Debug.Log($"[Propagator] Node '{nodeId}' has {edges.Count} out edges");
 
                     foreach (var edge in edges)
                     {
