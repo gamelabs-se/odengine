@@ -120,11 +120,9 @@ namespace Odengine.Tests
             foreach (var id in nodeIds)
                 dim.AddNode(id);
 
-            // Add edges A->B, A->C
-            if (nodeIds.Length >= 2)
-                dim.AddEdge(nodeIds[0], nodeIds[1], 1.0f);
-            if (nodeIds.Length >= 3)
-                dim.AddEdge(nodeIds[0], nodeIds[2], 1.0f);
+            // Always add edges A->B, A->C (regardless of insertion order)
+            dim.AddEdge("A", "B", 1.0f);
+            dim.AddEdge("A", "C", 1.0f);
 
             return dim;
         }
