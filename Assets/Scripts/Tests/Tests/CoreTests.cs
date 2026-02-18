@@ -12,8 +12,8 @@ namespace Odengine.Tests
         [Test]
         public void NodeGraph_AddNode_Works()
         {
-            var graph = new OdNodeGraph();
-            var node = new OdNode("planet1", "Planet Alpha");
+            var graph = new NodeGraph();
+            var node = new Node("planet1", "Planet Alpha");
 
             graph.AddNode(node);
 
@@ -38,9 +38,9 @@ namespace Odengine.Tests
         [Test]
         public void FieldSampler_SamplesAmplitude_Deterministically()
         {
-            var graph = new OdNodeGraph();
-            var node1 = new OdNode("node1", "Node 1");
-            var node2 = new OdNode("node2", "Node 2");
+            var graph = new NodeGraph();
+            var node1 = new Node("node1", "Node 1");
+            var node2 = new Node("node2", "Node 2");
             graph.AddNode(node1);
             graph.AddNode(node2);
 
@@ -63,9 +63,9 @@ namespace Odengine.Tests
         [Test]
         public void FieldPropagation_AttenuatesWithResistance()
         {
-            var graph = new OdNodeGraph();
-            var nodeA = new OdNode("a", "A");
-            var nodeB = new OdNode("b", "B");
+            var graph = new NodeGraph();
+            var nodeA = new Node("a", "A");
+            var nodeB = new Node("b", "B");
             graph.AddNode(nodeA);
             graph.AddNode(nodeB);
             graph.AddEdge("a", "b", 50f); // moderate resistance
@@ -87,7 +87,7 @@ namespace Odengine.Tests
         public void Dimension_IntegratesAllComponents()
         {
             var world = new Dimension();
-            var node = new OdNode("node1", "Node 1");
+            var node = new Node("node1", "Node 1");
             world.Graph.AddNode(node);
 
             var profile = new FieldProfile("availability_profile", 0.5f, 0.01f, 1.0f, 0.0f);
@@ -107,7 +107,7 @@ namespace Odengine.Tests
     {
         public DirectAmplitudeSampler(string id) : base(id) { }
 
-        public override object Sample(OdNode node, Field field, Dictionary<string, object> context = null)
+        public override object Sample(Node node, Field field, Dictionary<string, object> context = null)
         {
             return field.GetAmplitude(node.Id);
         }

@@ -8,25 +8,25 @@ namespace Odengine.Graph
     /// A node in the world graph.
     /// Nodes are terrain. Fields flow over them.
     /// </summary>
-    public sealed class OdNode
+    public sealed class Node
     {
         public string Id { get; }
         public string Name { get; set; }
         
         private readonly SortedSet<string> _tags;
         private readonly Dictionary<string, object> _components;
-        private readonly List<OdEdge> _edges;
-        private List<OdEdge> _sortedEdges;
+        private readonly List<Edge> _edges;
+        private List<Edge> _sortedEdges;
         private bool _needsEdgeSort;
 
-        public OdNode(string id, string name = null)
+        public Node(string id, string name = null)
         {
             Id = id;
             Name = name ?? id;
             _tags = new SortedSet<string>(StringComparer.Ordinal);
             _components = new Dictionary<string, object>(StringComparer.Ordinal);
-            _edges = new List<OdEdge>();
-            _sortedEdges = new List<OdEdge>();
+            _edges = new List<Edge>();
+            _sortedEdges = new List<Edge>();
             _needsEdgeSort = false;
         }
 
@@ -51,7 +51,7 @@ namespace Odengine.Graph
             return false;
         }
 
-        internal void AddEdge(OdEdge edge)
+        internal void AddEdge(Edge edge)
         {
             _edges.Add(edge);
             _needsEdgeSort = true;
@@ -61,7 +61,7 @@ namespace Odengine.Graph
         /// Get edges in deterministic order (sorted by target node ID).
         /// CRITICAL for determinism.
         /// </summary>
-        public IReadOnlyList<OdEdge> GetSortedEdges()
+        public IReadOnlyList<Edge> GetSortedEdges()
         {
             if (_needsEdgeSort)
             {

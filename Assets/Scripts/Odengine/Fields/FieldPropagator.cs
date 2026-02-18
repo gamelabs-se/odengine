@@ -14,7 +14,7 @@ namespace Odengine.Fields
     /// </summary>
     public static class FieldPropagator
     {
-        public static Dictionary<string, float> Step(Field field, OdNodeGraph graph, float dt)
+        public static Dictionary<string, float> Step(Field field, NodeGraph graph, float dt)
         {
             var deltas = new Dictionary<string, float>();
 
@@ -57,7 +57,7 @@ namespace Odengine.Fields
             deltas[nodeId] += delta;
         }
 
-        private static float ComputeTransmission(float sourceAmp, OdEdge edge, FieldProfile profile, float dt)
+        private static float ComputeTransmission(float sourceAmp, Edge edge, FieldProfile profile, float dt)
         {
             float baseResistance = edge.Resistance * profile.EdgeResistanceScale;
             float tagMultiplier = profile.GetTagMultiplier(edge.Tags);
@@ -71,7 +71,7 @@ namespace Odengine.Fields
         /// Step a ScalarField (channelized field with base amplitude + layers)
         /// Propagates both base field and all active channels
         /// </summary>
-        public static void Step(ScalarField field, OdNodeGraph graph, float dt)
+        public static void Step(ScalarField field, NodeGraph graph, float dt)
         {
             // Propagate base field amplitude
             var baseDeltas = new Dictionary<string, float>();

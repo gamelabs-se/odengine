@@ -23,7 +23,7 @@ namespace Odengine.Fields
         /// Sample the field at a specific node.
         /// Returns a deterministic value based on amplitude.
         /// </summary>
-        public abstract object Sample(OdNode node, Field field, Dictionary<string, object> context = null);
+        public abstract object Sample(Node node, Field field, Dictionary<string, object> context = null);
     }
 
     /// <summary>
@@ -33,9 +33,9 @@ namespace Odengine.Fields
     {
         protected FieldSampler(string samplerId) : base(samplerId) { }
 
-        public abstract T SampleTyped(OdNode node, Field field, Dictionary<string, object> context = null);
+        public abstract T SampleTyped(Node node, Field field, Dictionary<string, object> context = null);
 
-        public sealed override object Sample(OdNode node, Field field, Dictionary<string, object> context = null)
+        public sealed override object Sample(Node node, Field field, Dictionary<string, object> context = null)
         {
             return SampleTyped(node, field, context);
         }
@@ -53,7 +53,7 @@ namespace Odengine.Fields
             Scale = scale;
         }
 
-        public override float SampleTyped(OdNode node, Field field, Dictionary<string, object> context = null)
+        public override float SampleTyped(Node node, Field field, Dictionary<string, object> context = null)
         {
             var amp = field.GetAmplitude(node.Id);
             return amp * Scale;
@@ -74,7 +74,7 @@ namespace Odengine.Fields
             Max = max;
         }
 
-        public override float SampleTyped(OdNode node, Field field, Dictionary<string, object> context = null)
+        public override float SampleTyped(Node node, Field field, Dictionary<string, object> context = null)
         {
             var amp = field.GetAmplitude(node.Id);
             return Math.Clamp(amp, Min, Max);

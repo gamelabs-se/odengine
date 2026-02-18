@@ -23,7 +23,12 @@ namespace Odengine.Core
             _fields = new Dictionary<string, Field>(StringComparer.Ordinal);
         }
 
-        public Node AddNode(string id, string name = null) => Graph.AddNode(id, name);
+        public Node AddNode(string id, string name = null)
+        {
+            var node = new Node(id);
+            Graph.AddNode(node);
+            return node;
+        }
 
         public Edge AddEdge(string fromId, string toId, float resistance = 1.0f, string tags = "", bool bidirectional = false)
         {
@@ -41,6 +46,11 @@ namespace Odengine.Core
             _fields[fieldId] = field;
             return field;
         }
+
+        /// <summary>
+        /// Alias for AddScalarField (for backwards compatibility)
+        /// </summary>
+        public ScalarField AddField(string fieldId, FieldProfile profile) => AddScalarField(fieldId, profile);
 
         public ScalarField GetOrCreateScalarField(string fieldId, FieldProfile profile = null)
         {

@@ -15,7 +15,7 @@ namespace Odengine.Fields
     public sealed class ScalarField : Field
     {
         public override string FieldId { get; }
-        public FieldProfile Profile { get; }
+        public override FieldProfile Profile { get; }
         public ChannelFieldStorage Storage { get; } = new ChannelFieldStorage();
 
         /// <summary>
@@ -139,6 +139,22 @@ namespace Odengine.Fields
             var list = new List<string>(_fieldAmplitude.Keys);
             list.Sort(StringComparer.Ordinal);
             return list;
+        }
+
+        /// <summary>
+        /// Get amplitude at a node (base field amplitude, not channel)
+        /// </summary>
+        public override float GetAmplitude(string nodeId) => GetFieldAmp(nodeId);
+
+        /// <summary>
+        /// Get all amplitudes (base field amplitude, not channels)
+        /// </summary>
+        public override IEnumerable<(string nodeId, float amplitude)> GetAllAmplitudes()
+        {
+            foreach (var kvp in _fieldAmplitude)
+            {
+                yield return (kvp.Key, kvp.Value);
+            }
         }
     }
 

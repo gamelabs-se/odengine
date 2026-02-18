@@ -9,15 +9,15 @@ namespace Odengine.Graph
     /// The ONLY way fields move between nodes.
     /// Has exactly one core property: Resistance.
     /// </summary>
-    public sealed class OdEdge
+    public sealed class Edge
     {
-        public OdNode From { get; }
-        public OdNode To { get; }
+        public Node From { get; }
+        public Node To { get; }
         public float Resistance { get; set; }
         
         private readonly SortedSet<string> _tags;
 
-        public OdEdge(OdNode from, OdNode to, float resistance = 1f)
+        public Edge(Node from, Node to, float resistance = 1f)
         {
             From = from ?? throw new ArgumentNullException(nameof(from));
             To = to ?? throw new ArgumentNullException(nameof(to));

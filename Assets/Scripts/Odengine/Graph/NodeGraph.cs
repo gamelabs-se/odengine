@@ -8,25 +8,25 @@ namespace Odengine.Graph
     /// Graph wrapper for managing nodes and their relationships.
     /// DETERMINISTIC: All iteration is ordered (StringComparer.Ordinal).
     /// </summary>
-    public sealed class OdNodeGraph
+    public sealed class NodeGraph
     {
-        private readonly Dictionary<string, OdNode> _nodes;
-        private readonly List<OdEdge> _edges;
+        private readonly Dictionary<string, Node> _nodes;
+        private readonly List<Edge> _edges;
         private List<string> _sortedNodeIds;
         private bool _needsSort;
 
         public int NodeCount => _nodes.Count;
         public int EdgeCount => _edges.Count;
 
-        public OdNodeGraph()
+        public NodeGraph()
         {
-            _nodes = new Dictionary<string, OdNode>(StringComparer.Ordinal);
-            _edges = new List<OdEdge>();
+            _nodes = new Dictionary<string, Node>(StringComparer.Ordinal);
+            _edges = new List<Edge>();
             _sortedNodeIds = new List<string>();
             _needsSort = false;
         }
 
-        public void AddNode(OdNode node)
+        public void AddNode(Node node)
         {
             if (_nodes.ContainsKey(node.Id))
                 throw new InvalidOperationException($"Node {node.Id} already exists");
@@ -35,12 +35,12 @@ namespace Odengine.Graph
             _needsSort = true;
         }
 
-        public bool TryGetNode(string id, out OdNode node)
+        public bool TryGetNode(string id, out Node node)
         {
             return _nodes.TryGetValue(id, out node);
         }
 
-        public OdNode GetNode(string id)
+        public Node GetNode(string id)
         {
             return _nodes.TryGetValue(id, out var node) ? node : null;
         }
@@ -48,14 +48,14 @@ namespace Odengine.Graph
         /// <summary>
         /// Add an edge and return it. Tags can be comma-separated string or EdgeTags flags.
         /// </summary>
-        public OdEdge AddEdge(string fromId, string toId, float resistance = 1.0f, string tags = "")
+        public Edge AddEdge(string fromId, string toId, float resistance = 1.0f, string tags = "")
         {
             if (!_nodes.TryGetValue(fromId, out var from))
                 throw new ArgumentException($"Source node {fromId} not found");
             if (!_nodes.TryGetValue(toId, out var to))
                 throw new ArgumentException($"Target node {toId} not found");
 
-            var edge = new OdEdge(from, to, resistance);
+            var edge = new Edge(from, to, resistance);
             
             // Apply tags from string
             if (!string.IsNullOrEmpty(tags))
@@ -86,14 +86,14 @@ namespace Odengine.Graph
         /// <summary>
         /// Add edge with EdgeTags enum (convenience)
         /// </summary>
-        public OdEdge AddEdgeWithTags(string fromId, string toId, float resistance, EdgeTags tagFlags)
+        public Edge AddEdgeWithTags(string fromId, string toId, float resistance, EdgeTags tagFlags)
         {
             if (!_nodes.TryGetValue(fromId, out var from))
                 throw new ArgumentException($"Source node {fromId} not found");
             if (!_nodes.TryGetValue(toId, out var to))
                 throw new ArgumentException($"Target node {toId} not found");
 
-            var edge = new OdEdge(from, to, resistance);
+            var edge = new Edge(from, to, resistance);
             
             // Apply tags from enum flags
             if (tagFlags != EdgeTags.None)
@@ -110,14 +110,14 @@ namespace Odengine.Graph
         }
 
         [Obsolete("Use AddEdge or AddEdgeWithTags instead")]
-        private OdEdge AddEdge_OLD(string fromId, string toId, float resistance = 1.0f, EdgeTags tags = EdgeTags.None, bool bidirectional = false)
+        private Edge AddEdge_OLD(string fromId, string toId, float resistance = 1.0f, EdgeTags tags = EdgeTags.None, bool bidirectional = false)
         {
             if (!_nodes.TryGetValue(fromId, out var from))
                 throw new ArgumentException($"Source node {fromId} not found");
             if (!_nodes.TryGetValue(toId, out var to))
                 throw new ArgumentException($"Target node {toId} not found");
 
-            var edge = new OdEdge(from, to, resistance);
+            var edge = new Edge(from, to, resistance);
             
             // Apply tags
             if (tags != EdgeTags.None)
@@ -133,7 +133,7 @@ namespace Odengine.Graph
 
             if (bidirectional)
             {
-                var reverseEdge = new OdEdge(to, from, resistance);
+                var reverseEdge = new Edge(to, from, resistance);
                 
                 // Copy tags to reverse edge
                 if (tags != EdgeTags.None)
@@ -167,13 +167,13 @@ namespace Odengine.Graph
         /// <summary>
         /// Iterate nodes in deterministic order.
         /// </summary>
-        public IEnumerable<OdNode> EnumerateNodesSorted()
+        public IEnumerable<Node> EnumerateNodesSorted()
         {
             foreach (var id in GetSortedNodeIds())
                 yield return _nodes[id];
         }
 
-        public IEnumerable<OdEdge> AllEdges => _edges;
-        public IReadOnlyDictionary<string, OdNode> Nodes => _nodes;
+        public IEnumerable<Edge> AllEdges => _edges;
+        public IReadOnlyDictionary<string, Node> Nodes => _nodes;
     }
 }
