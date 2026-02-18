@@ -132,6 +132,23 @@ namespace Odengine.Fields
         }
 
         /// <summary>
+        /// Set amplitude at a node (base field amplitude)
+        /// </summary>
+        public void SetAmplitude(string nodeId, float amp) => SetFieldAmp(nodeId, amp);
+
+        /// <summary>
+        /// Apply deltas to field amplitude after propagation
+        /// </summary>
+        public void ApplyDeltas(Dictionary<string, float> deltas)
+        {
+            foreach (var kvp in deltas)
+            {
+                float current = GetFieldAmp(kvp.Key);
+                SetFieldAmp(kvp.Key, current + kvp.Value);
+            }
+        }
+
+        /// <summary>
         /// Get sorted node IDs that have field amplitude
         /// </summary>
         public List<string> GetFieldNodesSorted()

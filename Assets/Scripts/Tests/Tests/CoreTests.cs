@@ -25,7 +25,7 @@ namespace Odengine.Tests
         public void Field_StoresAmplitudePerNode()
         {
             var profile = new FieldProfile("test_profile", 0.5f, 0.01f, 1.0f, 0.0f);
-            var field = new Field("availability", profile);
+            var field = new ScalarField("availability", profile);
 
             field.SetAmplitude("node1", 0.5f);
             field.SetAmplitude("node2", 0.8f);
@@ -45,7 +45,7 @@ namespace Odengine.Tests
             graph.AddNode(node2);
 
             var profile = new FieldProfile("price_profile", 0.5f, 0.01f, 1.0f, 0.0f);
-            var field = new Field("price", profile);
+            var field = new ScalarField("price", profile);
             field.SetAmplitude("node1", 0.7f);
             field.SetAmplitude("node2", 0.3f);
 
@@ -71,12 +71,11 @@ namespace Odengine.Tests
             graph.AddEdge("a", "b", 50f); // moderate resistance
 
             var profile = new FieldProfile("power_profile", 0.5f, 0.0f, 1.0f, 0.0f);
-            var field = new Field("power", profile);
+            var field = new ScalarField("power", profile);
             field.SetAmplitude("a", 1.0f);
             field.SetAmplitude("b", 0.0f);
 
-            var deltas = FieldPropagator.Step(field, graph, 1.0f);
-            field.ApplyDeltas(deltas);
+            FieldPropagator.Step(field, graph, 1.0f);
 
             var ampB = field.GetAmplitude("b");
             Assert.That(ampB, Is.GreaterThan(0f)); // some propagation
@@ -91,11 +90,11 @@ namespace Odengine.Tests
             world.Graph.AddNode(node);
 
             var profile = new FieldProfile("availability_profile", 0.5f, 0.01f, 1.0f, 0.0f);
-            var field = world.AddField("availability", profile);
+            var field = world.AddScalarField("availability", profile);
 
             field.SetAmplitude("node1", 0.75f);
 
-            Assert.That(world.GetField("availability"), Is.Not.Null);
+            Assert.That(world.Fields.ContainsKey("availability"), Is.True);
             Assert.That(field.GetAmplitude("node1"), Is.EqualTo(0.75f));
         }
     }

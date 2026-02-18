@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Odengine.Core;
 using Odengine.Fields;
@@ -69,11 +70,8 @@ namespace Odengine.Examples
             for (int tick = 0; tick < 10; tick++)
             {
                 // Two-phase propagation (deterministic)
-                var tradeDeltas = FieldPropagator.Step(tradeField, world.Graph, dt: 0.1f);
-                tradeField.ApplyDeltas(tradeDeltas);
-
-                var cultureDeltas = FieldPropagator.Step(cultureField, world.Graph, dt: 0.1f);
-                cultureField.ApplyDeltas(cultureDeltas);
+                FieldPropagator.Step(tradeField, world.Graph, dt: 0.1f);
+                FieldPropagator.Step(cultureField, world.Graph, dt: 0.1f);
             }
 
             Debug.Log("\nAfter 10 ticks:");
