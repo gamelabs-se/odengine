@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using Odengine.Core;
 using Odengine.Economy;
+using Odengine.Fields;
 
 namespace Odengine.Tests
 {
@@ -13,12 +14,11 @@ namespace Odengine.Tests
             var dimension = new Dimension();
             dimension.AddNode("city");
 
-            var economy = new Economy(dimension);
-            var water = new ItemDef("water", "Water", 100f);
-            economy.RegisterItem(water);
+            var profile = new FieldProfile("economy");
+            var economy = new EconomySystem(dimension, profile);
 
             // No data stored → availability=1, pressure=1 → price=baseValue
-            float price = economy.SamplePrice("water", "city");
+            float price = economy.SamplePrice("city", "water", 100f);
             Assert.AreEqual(100f, price, 0.01f);
         }
 
@@ -28,17 +28,16 @@ namespace Odengine.Tests
             var dimension = new Dimension();
             dimension.AddNode("city");
 
-            var economy = new Economy(dimension);
-            var water = new ItemDef("water", "Water", 100f);
-            economy.RegisterItem(water);
+            var profile = new FieldProfile("economy");
+            var economy = new EconomySystem(dimension, profile);
 
-            float priceInitial = economy.SamplePrice("water", "city");
+            float priceInitial = economy.SamplePrice("city", "water", 100f);
             Assert.AreEqual(100f, priceInitial, 0.01f);
 
             // Buy 10 units (decreases availability, increases pressure)
-            economy.ProcessTrade("water", "city", 10f);
+            economy.InjectTrade("city", "water", 10f);
 
-            float priceAfter = economy.SamplePrice("water", "city");
+            float priceAfter = economy.SamplePrice("city", "water", 100f);
             Assert.Greater(priceAfter, priceInitial, "Price should increase after buying");
         }
     }
