@@ -1,256 +1,133 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Odengine.Fields
 {
     /// <summary>
-    /// A scalar field over the graph with many channels (item IDs, faction IDs, etc.).
-    /// This is the SINGLE field instance that backs many "virtual fields".
-    /// 
-    /// Key concept: 
-    /// - Field has base amplitude per node (the "general field strength")
-    /// - Channels are "realized layers" when they deviate from field amplitude
-    /// - When channel amp gets close to field amp, it merges back (lazy virtualization)
+    /// Multi-channel scalar field with log-space storage.
+    /// Neutral baseline: multiplier = 1.0 everywhere (logAmp = 0).
+    /// Sparse: missing keys = neutral.
     /// </summary>
-    public sealed class ScalarField : Field
+    [Serializable]
+    public sealed class ScalarField
     {
-        public override string FieldId { get; }
-        public override FieldProfile Profile { get; }
-        public ChannelFieldStorage Storage { get; } = new ChannelFieldStorage();
+        private struct FieldKey : IEquatable<FieldKey>
+        {
+            public string NodeId;
+            public string ChannelId;
 
-        /// <summary>
-        /// Base field amplitude per node (when channel not explicitly tracked)
-        /// </summary>
-        private readonly Dictionary<string, float> _fieldAmplitude = new(StringComparer.Ordinal);
+            public FieldKey(string nodeId, string channelId)
+            {
+                NodeId = nodeId;
+                ChannelId = channelId;
+            }
 
-        public IChannelProfileProvider ChannelProfileProvider { get; set; }
+            public bool Equals(FieldKey other) =>
+                NodeId == other.NodeId && ChannelId == other.ChannelId;
 
-        /// <summary>
-        /// Delta threshold: if |channelAmp - fieldAmp| < this, merge channel into field
-        /// </summary>
-        public float MergeThreshold { get; set; } = 0.1f;
+            public override bool Equals(object obj) =>
+                obj is FieldKey key && Equals(key);
 
-        /// <summary>
-        /// Normalization threshold: only normalize channels if deviation is below this
-        /// Large spikes have game implications and shouldn't be smoothed away
-        /// </summary>
-        public float NormalizationThreshold { get; set; } = 2.0f;
+            public override int GetHashCode() =>
+                (NodeId?.GetHashCode() ?? 0) * 397 ^ (ChannelId?.GetHashCode() ?? 0);
+        }
 
-        /// <summary>
-        /// Normalization rate per tick (0-1, how strongly to pull channel toward field)
-        /// </summary>
-        public float NormalizationRate { get; set; } = 0.1f;
+        public string FieldId { get; }
+        public FieldProfile Profile { get; }
+
+        private readonly Dictionary<FieldKey, float> _logAmps;
+        private const float LogEpsilon = 0.0001f;
 
         public ScalarField(string fieldId, FieldProfile profile)
         {
-            FieldId = fieldId ?? throw new ArgumentNullException(nameof(fieldId));
+            if (string.IsNullOrEmpty(fieldId))
+                throw new ArgumentException("FieldId cannot be null or empty", nameof(fieldId));
+            
+            FieldId = fieldId;
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
+            _logAmps = new Dictionary<FieldKey, float>();
         }
 
-        /// <summary>
-        /// Get base field amplitude at node (fallback when channel not tracked)
-        /// </summary>
-        public float GetFieldAmp(string nodeId)
+        public float GetLogAmp(string nodeId, string channelId)
         {
-            return _fieldAmplitude.TryGetValue(nodeId, out var amp) ? amp : 0f;
+            if (string.IsNullOrEmpty(nodeId) || string.IsNullOrEmpty(channelId))
+                return 0f;
+            
+            var key = new FieldKey(nodeId, channelId);
+            return _logAmps.TryGetValue(key, out float logAmp) ? logAmp : 0f;
         }
 
-        /// <summary>
-        /// Set base field amplitude at node
-        /// </summary>
-        public void SetFieldAmp(string nodeId, float amp)
+        public float GetMultiplier(string nodeId, string channelId)
         {
-            if (Math.Abs(amp) < 0.0001f)
-                _fieldAmplitude.Remove(nodeId);
-            else
-                _fieldAmplitude[nodeId] = amp;
+            float logAmp = GetLogAmp(nodeId, channelId);
+            return MathF.Exp(logAmp);
         }
 
-        /// <summary>
-        /// Set base amplitude (alias for tests)
-        /// </summary>
-        public void SetBaseAmplitude(string nodeId, float amp) => SetFieldAmp(nodeId, amp);
-
-        /// <summary>
-        /// Get a "virtual field" view for a specific channel.
-        /// This is the "each item is a field" facade that keeps the mental model clean.
-        /// </summary>
-        public VirtualField For(string channelId) => new VirtualField(this, channelId);
-
-        /// <summary>
-        /// Process merge/split logic after propagation.
-        /// Called once per tick to maintain lazy virtualization.
-        /// </summary>
-        public void ProcessVirtualization()
+        public void SetLogAmp(string nodeId, string channelId, float logAmp)
         {
-            var channelsToRemove = new List<string>();
+            if (string.IsNullOrEmpty(nodeId) || string.IsNullOrEmpty(channelId))
+                return;
 
-            foreach (var channelId in Storage.GetActiveChannelsSorted())
+            // Clamp
+            logAmp = Math.Clamp(logAmp, Profile.MinLogAmpClamp, Profile.MaxLogAmpClamp);
+
+            var key = new FieldKey(nodeId, channelId);
+
+            // Remove if effectively zero (neutral)
+            if (MathF.Abs(logAmp) < LogEpsilon)
             {
-                var channelMap = Storage.GetChannelMap(channelId);
-                var nodesToMerge = new List<string>();
-
-                foreach (var nodeId in channelMap.Keys)
-                {
-                    float channelAmp = channelMap[nodeId];
-                    float fieldAmp = GetFieldAmp(nodeId);
-                    float delta = Math.Abs(channelAmp - fieldAmp);
-
-                    // Merge: channel is close enough to field, stop tracking it
-                    if (delta < MergeThreshold)
-                    {
-                        nodesToMerge.Add(nodeId);
-                        continue;
-                    }
-
-                    // Normalize: pull channel toward field if deviation is small
-                    if (delta < NormalizationThreshold)
-                    {
-                        float normalized = channelAmp + (fieldAmp - channelAmp) * NormalizationRate;
-                        Storage.Set(channelId, nodeId, normalized);
-                    }
-                }
-
-                // Remove merged nodes
-                foreach (var nodeId in nodesToMerge)
-                {
-                    channelMap.Remove(nodeId);
-                }
-
-                // If channel has no nodes left, remove it entirely
-                if (channelMap.Count == 0)
-                {
-                    channelsToRemove.Add(channelId);
-                }
+                _logAmps.Remove(key);
+                return;
             }
 
-            // Clean up empty channels
-            foreach (var channelId in channelsToRemove)
-            {
-                Storage.GetChannelMap(channelId).Clear();
-            }
+            _logAmps[key] = logAmp;
         }
 
-        /// <summary>
-        /// Set amplitude at a node (base field amplitude)
-        /// </summary>
-        public void SetAmplitude(string nodeId, float amp) => SetFieldAmp(nodeId, amp);
-
-        /// <summary>
-        /// Apply deltas to field amplitude after propagation
-        /// </summary>
-        public void ApplyDeltas(Dictionary<string, float> deltas)
+        public void AddLogAmp(string nodeId, string channelId, float deltaLogAmp)
         {
-            foreach (var kvp in deltas)
-            {
-                float current = GetFieldAmp(kvp.Key);
-                SetFieldAmp(kvp.Key, current + kvp.Value);
-            }
+            if (MathF.Abs(deltaLogAmp) < LogEpsilon)
+                return;
+
+            float current = GetLogAmp(nodeId, channelId);
+            SetLogAmp(nodeId, channelId, current + deltaLogAmp);
         }
 
-        /// <summary>
-        /// Get sorted node IDs that have field amplitude
-        /// </summary>
-        public List<string> GetFieldNodesSorted()
+        public ChannelView ForChannel(string channelId) => new ChannelView(this, channelId);
+
+        public IReadOnlyList<string> GetActiveNodeIdsSortedForChannel(string channelId)
         {
-            var list = new List<string>(_fieldAmplitude.Keys);
+            var nodeIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var key in _logAmps.Keys)
+            {
+                if (key.ChannelId == channelId)
+                    nodeIds.Add(key.NodeId);
+            }
+
+            var list = nodeIds.ToList();
             list.Sort(StringComparer.Ordinal);
             return list;
         }
 
-        /// <summary>
-        /// Get amplitude at a node (base field amplitude, not channel)
-        /// </summary>
-        public override float GetAmplitude(string nodeId) => GetFieldAmp(nodeId);
-
-        /// <summary>
-        /// Get all amplitudes (base field amplitude, not channels)
-        /// </summary>
-        public override IEnumerable<(string nodeId, float amplitude)> GetAllAmplitudes()
+        public IReadOnlyList<string> GetActiveChannelIdsSorted()
         {
-            foreach (var kvp in _fieldAmplitude)
-            {
-                yield return (kvp.Key, kvp.Value);
-            }
-        }
-    }
+            var channelIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var key in _logAmps.Keys)
+                channelIds.Add(key.ChannelId);
 
-    /// <summary>
-    /// VirtualField is the "each item is a field" facade.
-    /// It's a lightweight struct that wraps (ScalarField, channelId).
-    /// Conceptually it represents "water availability field", but physically it's just a view.
-    /// 
-    /// Key behavior:
-    /// - GetAmp: returns channel amp if tracked, otherwise field amp (fallback)
-    /// - SetAmp/AddAmp: if deviation exceeds threshold, realizes the channel (starts tracking)
-    /// </summary>
-    public readonly struct VirtualField
-    {
-        public readonly ScalarField Field;
-        public readonly string ChannelId;
-
-        public VirtualField(ScalarField field, string channelId)
-        {
-            Field = field ?? throw new ArgumentNullException(nameof(field));
-            ChannelId = channelId ?? throw new ArgumentNullException(nameof(channelId));
+            var list = channelIds.ToList();
+            list.Sort(StringComparer.Ordinal);
+            return list;
         }
 
-        /// <summary>
-        /// Get amplitude: returns channel-specific if tracked, otherwise field amplitude
-        /// </summary>
-        public float GetAmp(string nodeId)
+        public IEnumerable<(string nodeId, string channelId, float logAmp)> EnumerateAllActiveSorted()
         {
-            // If channel is explicitly tracked at this node, use it
-            if (Field.Storage.HasChannel(ChannelId))
-            {
-                var channelMap = Field.Storage.GetChannelMap(ChannelId);
-                if (channelMap.ContainsKey(nodeId))
-                {
-                    return channelMap[nodeId];
-                }
-            }
+            var sorted = _logAmps
+                .Select(kvp => (kvp.Key.NodeId, kvp.Key.ChannelId, kvp.Value))
+                .OrderBy(x => x.ChannelId, StringComparer.Ordinal)
+                .ThenBy(x => x.NodeId, StringComparer.Ordinal);
 
-            // Otherwise fallback to field amplitude
-            return Field.GetFieldAmp(nodeId);
+            return sorted;
         }
-
-        /// <summary>
-        /// Set amplitude: realizes channel if deviation from field amp exceeds threshold
-        /// </summary>
-        public void SetAmp(string nodeId, float value)
-        {
-            float fieldAmp = Field.GetFieldAmp(nodeId);
-            float delta = Math.Abs(value - fieldAmp);
-
-            // If setting to near-field value, don't track
-            if (delta < Field.MergeThreshold)
-            {
-                // Remove from channel if it exists
-                if (Field.Storage.HasChannel(ChannelId))
-                {
-                    Field.Storage.GetChannelMap(ChannelId).Remove(nodeId);
-                }
-                return;
-            }
-
-            // Deviation is significant, track this channel
-            Field.Storage.TouchChannel(ChannelId);
-            Field.Storage.Set(ChannelId, nodeId, value);
-        }
-
-        /// <summary>
-        /// Add delta to amplitude: realizes channel if result deviates from field
-        /// </summary>
-        public void AddAmp(string nodeId, float delta)
-        {
-            if (Math.Abs(delta) < 0.0001f) return;
-
-            float current = GetAmp(nodeId); // Uses field amp if not tracked
-            float newValue = current + delta;
-
-            SetAmp(nodeId, newValue); // SetAmp handles merge/split logic
-        }
-
-        public override string ToString() => $"VirtualField({Field.FieldId}.{ChannelId})";
     }
 }

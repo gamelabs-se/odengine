@@ -4,31 +4,37 @@ using System.Linq;
 
 namespace Odengine.Graph
 {
-    /// <summary>
-    /// An edge between two nodes.
-    /// The ONLY way fields move between nodes.
-    /// Has exactly one core property: Resistance.
-    /// </summary>
+    [Serializable]
     public sealed class Edge
     {
-        public Node From { get; }
-        public Node To { get; }
-        public float Resistance { get; set; }
-        
-        private readonly SortedSet<string> _tags;
+        public string FromId { get; }
+        public string ToId { get; }
+        public float Resistance { get; }
+        public HashSet<string> Tags { get; }
 
-        public Edge(Node from, Node to, float resistance = 1f)
+        public Edge(string fromId, string toId, float resistance, params string[] tags)
         {
-            From = from ?? throw new ArgumentNullException(nameof(from));
-            To = to ?? throw new ArgumentNullException(nameof(to));
+            if (string.IsNullOrEmpty(fromId))
+                throw new ArgumentException("FromId cannot be null or empty", nameof(fromId));
+            if (string.IsNullOrEmpty(toId))
+                throw new ArgumentException("ToId cannot be null or empty", nameof(toId));
+            if (resistance < 0f)
+                throw new ArgumentException("Resistance must be >= 0", nameof(resistance));
+
+            FromId = fromId;
+            ToId = toId;
             Resistance = resistance;
-            _tags = new SortedSet<string>(StringComparer.Ordinal);
+            Tags = tags != null && tags.Length > 0 
+                ? new HashSet<string>(tags, StringComparer.Ordinal) 
+                : new HashSet<string>(StringComparer.Ordinal);
         }
 
-        public void AddTag(string tag) => _tags.Add(tag);
-        public bool HasTag(string tag) => _tags.Contains(tag);
-        public IReadOnlyCollection<string> Tags => _tags;
+        public bool HasTag(string tag) => Tags.Contains(tag);
 
-        public override string ToString() => $"Edge({From.Id} -> {To.Id}, R={Resistance:F2})";
+        public override string ToString()
+        {
+            var tagStr = Tags.Count > 0 ? $" [{string.Join(",", Tags.OrderBy(t => t))}]" : "";
+            return $"Edge({FromId}->{ToId}, R={Resistance:F2}{tagStr})";
+        }
     }
 }

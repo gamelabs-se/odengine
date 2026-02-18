@@ -4,176 +4,67 @@ using System.Linq;
 
 namespace Odengine.Graph
 {
-    /// <summary>
-    /// Graph wrapper for managing nodes and their relationships.
-    /// DETERMINISTIC: All iteration is ordered (StringComparer.Ordinal).
-    /// </summary>
+    [Serializable]
     public sealed class NodeGraph
     {
-        private readonly Dictionary<string, Node> _nodes;
-        private readonly List<Edge> _edges;
-        private List<string> _sortedNodeIds;
-        private bool _needsSort;
+        private readonly Dictionary<string, Node> _nodes = new Dictionary<string, Node>(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<Edge>> _outEdges = new Dictionary<string, List<Edge>>(StringComparer.Ordinal);
 
-        public int NodeCount => _nodes.Count;
-        public int EdgeCount => _edges.Count;
-
-        public NodeGraph()
-        {
-            _nodes = new Dictionary<string, Node>(StringComparer.Ordinal);
-            _edges = new List<Edge>();
-            _sortedNodeIds = new List<string>();
-            _needsSort = false;
-        }
+        public IReadOnlyDictionary<string, Node> Nodes => _nodes;
 
         public void AddNode(Node node)
         {
-            if (_nodes.ContainsKey(node.Id))
-                throw new InvalidOperationException($"Node {node.Id} already exists");
-            
+            if (node == null) throw new ArgumentNullException(nameof(node));
             _nodes[node.Id] = node;
-            _needsSort = true;
+            if (!_outEdges.ContainsKey(node.Id))
+                _outEdges[node.Id] = new List<Edge>();
         }
 
-        public bool TryGetNode(string id, out Node node)
+        public void AddOrUpdateNode(Node node)
         {
-            return _nodes.TryGetValue(id, out node);
+            AddNode(node);
         }
 
-        public Node GetNode(string id)
-        {
-            return _nodes.TryGetValue(id, out var node) ? node : null;
-        }
+        public bool TryGetNode(string id, out Node node) => _nodes.TryGetValue(id, out node);
 
-        /// <summary>
-        /// Add an edge and return it. Tags can be comma-separated string or EdgeTags flags.
-        /// </summary>
-        public Edge AddEdge(string fromId, string toId, float resistance = 1.0f, string tags = "")
+        public void AddEdge(string fromId, string toId, float resistance, params string[] tags)
         {
-            if (!_nodes.TryGetValue(fromId, out var from))
-                throw new ArgumentException($"Source node {fromId} not found");
-            if (!_nodes.TryGetValue(toId, out var to))
-                throw new ArgumentException($"Target node {toId} not found");
+            if (!_nodes.ContainsKey(fromId))
+                throw new InvalidOperationException($"Source node '{fromId}' does not exist");
+            if (!_nodes.ContainsKey(toId))
+                throw new InvalidOperationException($"Target node '{toId}' does not exist");
 
-            var edge = new Edge(from, to, resistance);
+            var edge = new Edge(fromId, toId, resistance, tags);
             
-            // Apply tags from string
-            if (!string.IsNullOrEmpty(tags))
+            if (!_outEdges.TryGetValue(fromId, out var edges))
             {
-                var tagList = tags.Split(',');
-                foreach (var tag in tagList)
-                {
-                    var trimmed = tag.Trim();
-                    if (!string.IsNullOrEmpty(trimmed))
-                        edge.AddTag(trimmed);
-                }
-            }
-            
-            from.AddEdge(edge);
-            _edges.Add(edge);
-            return edge;
-        }
-
-        /// <summary>
-        /// Add bidirectional edges (convenience method)
-        /// </summary>
-        public void AddBidirectionalEdge(string fromId, string toId, float resistance = 1.0f, string tags = "")
-        {
-            AddEdge(fromId, toId, resistance, tags);
-            AddEdge(toId, fromId, resistance, tags);
-        }
-        
-        /// <summary>
-        /// Add edge with EdgeTags enum (convenience)
-        /// </summary>
-        public Edge AddEdgeWithTags(string fromId, string toId, float resistance, EdgeTags tagFlags)
-        {
-            if (!_nodes.TryGetValue(fromId, out var from))
-                throw new ArgumentException($"Source node {fromId} not found");
-            if (!_nodes.TryGetValue(toId, out var to))
-                throw new ArgumentException($"Target node {toId} not found");
-
-            var edge = new Edge(from, to, resistance);
-            
-            // Apply tags from enum flags
-            if (tagFlags != EdgeTags.None)
-            {
-                if ((tagFlags & EdgeTags.Ocean) != 0) edge.AddTag("ocean");
-                if ((tagFlags & EdgeTags.Road) != 0) edge.AddTag("road");
-                if ((tagFlags & EdgeTags.Wormhole) != 0) edge.AddTag("wormhole");
-                if ((tagFlags & EdgeTags.Border) != 0) edge.AddTag("border");
-            }
-            
-            from.AddEdge(edge);
-            _edges.Add(edge);
-            return edge;
-        }
-
-        [Obsolete("Use AddEdge or AddEdgeWithTags instead")]
-        private Edge AddEdge_OLD(string fromId, string toId, float resistance = 1.0f, EdgeTags tags = EdgeTags.None, bool bidirectional = false)
-        {
-            if (!_nodes.TryGetValue(fromId, out var from))
-                throw new ArgumentException($"Source node {fromId} not found");
-            if (!_nodes.TryGetValue(toId, out var to))
-                throw new ArgumentException($"Target node {toId} not found");
-
-            var edge = new Edge(from, to, resistance);
-            
-            // Apply tags
-            if (tags != EdgeTags.None)
-            {
-                if ((tags & EdgeTags.Ocean) != 0) edge.AddTag("ocean");
-                if ((tags & EdgeTags.Road) != 0) edge.AddTag("road");
-                if ((tags & EdgeTags.Wormhole) != 0) edge.AddTag("wormhole");
-                if ((tags & EdgeTags.Border) != 0) edge.AddTag("border");
-            }
-            
-            from.AddEdge(edge);
-            _edges.Add(edge);
-
-            if (bidirectional)
-            {
-                var reverseEdge = new Edge(to, from, resistance);
-                
-                // Copy tags to reverse edge
-                if (tags != EdgeTags.None)
-                {
-                    if ((tags & EdgeTags.Ocean) != 0) reverseEdge.AddTag("ocean");
-                    if ((tags & EdgeTags.Road) != 0) reverseEdge.AddTag("road");
-                    if ((tags & EdgeTags.Wormhole) != 0) reverseEdge.AddTag("wormhole");
-                    if ((tags & EdgeTags.Border) != 0) reverseEdge.AddTag("border");
-                }
-                
-                to.AddEdge(reverseEdge);
-                _edges.Add(reverseEdge);
+                edges = new List<Edge>();
+                _outEdges[fromId] = edges;
             }
 
-            return edge;
-        }
-
-        /// <summary>
-        /// Get node IDs in stable sorted order. CRITICAL for determinism.
-        /// </summary>
-        public IReadOnlyList<string> GetSortedNodeIds()
-        {
-            if (_needsSort)
+            edges.Add(edge);
+            
+            // Keep sorted for determinism
+            edges.Sort((a, b) =>
             {
-                _sortedNodeIds = _nodes.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
-                _needsSort = false;
-            }
-            return _sortedNodeIds;
+                int cmp = StringComparer.Ordinal.Compare(a.ToId, b.ToId);
+                if (cmp != 0) return cmp;
+                return a.Resistance.CompareTo(b.Resistance);
+            });
         }
 
-        /// <summary>
-        /// Iterate nodes in deterministic order.
-        /// </summary>
-        public IEnumerable<Node> EnumerateNodesSorted()
+        public IReadOnlyList<Edge> GetOutEdgesSorted(string fromId)
         {
-            foreach (var id in GetSortedNodeIds())
-                yield return _nodes[id];
+            if (_outEdges.TryGetValue(fromId, out var edges))
+                return edges;
+            return Array.Empty<Edge>();
         }
 
-        public IEnumerable<Edge> AllEdges => _edges;
-        public IReadOnlyDictionary<string, Node> Nodes => _nodes;
+        public IReadOnlyList<string> GetNodeIdsSorted()
+        {
+            var ids = _nodes.Keys.ToList();
+            ids.Sort(StringComparer.Ordinal);
+            return ids;
+        }
     }
 }

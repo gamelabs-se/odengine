@@ -6,84 +6,51 @@ using Odengine.Graph;
 namespace Odengine.Core
 {
     /// <summary>
-    /// The world state: just nodes and fields.
-    /// No hard-coded game concepts.
-    /// Everything is amplitude over a graph.
+    /// Container for the simulation: nodes, edges, fields.
+    /// No Unity dependencies.
     /// </summary>
+    [Serializable]
     public sealed class Dimension
     {
-        private readonly Dictionary<string, Field> _fields;
-        public readonly NodeGraph Graph;
-
-        public IReadOnlyDictionary<string, Field> Fields => _fields;
-
-        public Dimension()
-        {
-            Graph = new NodeGraph();
-            _fields = new Dictionary<string, Field>(StringComparer.Ordinal);
-        }
+        public NodeGraph Graph { get; } = new NodeGraph();
+        
+        private readonly Dictionary<string, ScalarField> _fields = new Dictionary<string, ScalarField>(StringComparer.Ordinal);
+        
+        public IReadOnlyDictionary<string, ScalarField> Fields => _fields;
 
         public Node AddNode(string id, string name = null)
         {
-            var node = new Node(id);
+            var node = new Node(id, name);
             Graph.AddNode(node);
             return node;
         }
 
-        public Edge AddEdge(string fromId, string toId, float resistance = 1.0f, string tags = "", bool bidirectional = false)
+        public void AddEdge(string fromId, string toId, float resistance, params string[] tags)
         {
-            var edge = Graph.AddEdge(fromId, toId, resistance, tags);
-            if (bidirectional)
-                Graph.AddEdge(toId, fromId, resistance, tags);
-            return edge;
+            Graph.AddEdge(fromId, toId, resistance, tags);
         }
 
-        public Node GetNode(string id) => Graph.GetNode(id);
-
-        public ScalarField AddScalarField(string fieldId, FieldProfile profile)
+        public ScalarField AddField(string fieldId, FieldProfile profile)
         {
+            if (_fields.ContainsKey(fieldId))
+                throw new InvalidOperationException($"Field '{fieldId}' already exists");
+
             var field = new ScalarField(fieldId, profile);
             _fields[fieldId] = field;
             return field;
         }
 
-        /// <summary>
-        /// Alias for AddScalarField (for backwards compatibility)
-        /// </summary>
-        public ScalarField AddField(string fieldId, FieldProfile profile) => AddScalarField(fieldId, profile);
-
-        public ScalarField GetOrCreateScalarField(string fieldId, FieldProfile profile = null)
+        public ScalarField GetField(string fieldId)
         {
-            if (_fields.TryGetValue(fieldId, out var existing) && existing is ScalarField scalarField)
-                return scalarField;
-
-            if (profile == null)
-                throw new ArgumentException($"ScalarField '{fieldId}' does not exist and no profile provided");
-
-            return AddScalarField(fieldId, profile);
+            return _fields.TryGetValue(fieldId, out var field) ? field : null;
         }
 
-        public IReadOnlyDictionary<string, Node> Nodes => Graph.Nodes;
-
-        public ScalarField GetScalarField(string fieldId)
+        public ScalarField GetOrCreateField(string fieldId, FieldProfile profile)
         {
-            return _fields.TryGetValue(fieldId, out var field) && field is ScalarField scalarField ? scalarField : null;
-        }
+            if (_fields.TryGetValue(fieldId, out var existing))
+                return existing;
 
-        public void Clear()
-        {
-            _fields.Clear();
-        }
-
-        public void Step(float dt)
-        {
-            foreach (var field in _fields.Values)
-            {
-                if (field is ScalarField scalarField)
-                {
-                    FieldPropagator.Step(scalarField, Graph, dt);
-                }
-            }
+            return AddField(fieldId, profile);
         }
     }
 }
