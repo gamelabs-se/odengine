@@ -193,16 +193,18 @@ namespace Odengine.Tests.Determinism
         [Test]
         public void ChannelOrder_DoesNotAffectHash()
         {
-            Dimension Make(string ch1, string ch2)
-            {
-                var d = new Dimension(); d.AddNode("n");
-                var f = d.AddField("g", DefaultProfile());
-                f.SetLogAmp("n", ch1, 1f);
-                f.SetLogAmp("n", ch2, 2f);
-                return d;
-            }
+            // Same channel→value mapping, different insertion order → identical hash
+            var d1 = new Dimension(); d1.AddNode("n");
+            var f1 = d1.AddField("g", DefaultProfile());
+            f1.SetLogAmp("n", "a", 1f);
+            f1.SetLogAmp("n", "b", 2f);  // a first, then b
 
-            Assert.AreEqual(StateHash.Compute(Make("a", "b")), StateHash.Compute(Make("b", "a")));
+            var d2 = new Dimension(); d2.AddNode("n");
+            var f2 = d2.AddField("g", DefaultProfile());
+            f2.SetLogAmp("n", "b", 2f);  // b first
+            f2.SetLogAmp("n", "a", 1f);  // then a — same content, different insertion order
+
+            Assert.AreEqual(StateHash.Compute(d1), StateHash.Compute(d2));
         }
 
         // ─── Propagation determinism ──────────────────────────────────────────

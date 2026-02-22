@@ -143,8 +143,8 @@ namespace Odengine.Tests.Core.Fields
             var field = new ScalarField("f", DefaultProfile());
             var view = field.ForChannel("ch");
             view.SetLogAmp("n", 1f);
-            view.SetLogAmp("n", 99f);
-            Assert.AreEqual(99f, view.GetLogAmp("n"), 1e-6f);
+            view.SetLogAmp("n", 7f);  // within MaxLogAmpClamp=20f
+            Assert.AreEqual(7f, view.GetLogAmp("n"), 1e-6f);
         }
 
         // ── Case sensitivity ──────────────────────────────────────────────────
