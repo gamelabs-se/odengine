@@ -192,17 +192,22 @@ namespace Odengine.War
                 }
                 else if (_coolingNodes.Contains(nodeId))
                 {
-                    // Ceasefire: accelerated decay
-                    Exposure.AddLogAmp(nodeId, ExposureChannel, -CeasefireDecayRate * dt);
+                    // Ceasefire: accelerated decay — clamp so logAmp never goes below zero
+                    if (currentLogAmp > ExposureEpsilon)
+                    {
+                        float decay = MathF.Min(currentLogAmp, CeasefireDecayRate * dt);
+                        Exposure.AddLogAmp(nodeId, ExposureChannel, -decay);
+                    }
 
                     float newLogAmp = Exposure.GetLogAmp(nodeId, ExposureChannel);
-                    if (MathF.Abs(newLogAmp) < ExposureEpsilon)
+                    if (newLogAmp <= ExposureEpsilon)
                         toRemoveFromCooling.Add(nodeId);
                 }
                 else if (currentLogAmp > ExposureEpsilon)
                 {
-                    // Ambient peace: slow natural decay (only if any exposure remains)
-                    Exposure.AddLogAmp(nodeId, ExposureChannel, -AmbientDecayRate * dt);
+                    // Ambient peace: slow natural decay — clamp so logAmp never goes below zero
+                    float decay = MathF.Min(currentLogAmp, AmbientDecayRate * dt);
+                    Exposure.AddLogAmp(nodeId, ExposureChannel, -decay);
                 }
             }
 
