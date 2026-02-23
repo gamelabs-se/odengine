@@ -98,72 +98,84 @@ public sealed class SimulationRunner : MonoBehaviour
 
     private void BootstrapSystems()
     {
+        // ── Economy ───────────────────────────────────────────────────────
+        // Stability rule for a bidirectional N-neighbor star:
+        //   DecayRate > sqrt(N) * PropagationRate * exp(-resistance)
+        // Hub has 4 spokes, exp(-0.5) ≈ 0.607
+        //   Need: DecayRate > 2 * 0.04 * 0.607 = 0.049  → 0.25 gives 5× margin
         var econProfile = new FieldProfile("economy.demo")
         {
-            PropagationRate    = 0.15f,
-            DecayRate          = 0.05f,
+            PropagationRate     = 0.04f,
+            DecayRate           = 0.25f,
             EdgeResistanceScale = 1f,
-            MinLogAmpClamp     = -10f,
-            MaxLogAmpClamp     =  10f,
-            LogEpsilon         = 0.0001f
+            MinLogAmpClamp      = -5f,
+            MaxLogAmpClamp      =  5f,
+            LogEpsilon          = 0.0001f
         };
         _economy = new EconomySystem(_dim, econProfile);
 
-        // Seed some initial trade in two commodities
-        _economy.InjectTrade(Hub,   "ore",   40f);
-        _economy.InjectTrade(South, "water", 60f);
-        _economy.InjectTrade(East,  "ore",   20f);
+        // Small steady injections — equilibrium ≈ 0.5–1.5 logAmp at hub
+        _economy.InjectTrade(Hub,   "ore",   2f);
+        _economy.InjectTrade(South, "water", 3f);
+        _economy.InjectTrade(East,  "ore",   1f);
 
+        // ── War ───────────────────────────────────────────────────────────
+        var warConfig = new WarConfig
+        {
+            ExposureGrowthRate  = 0.04f,
+            AmbientDecayRate    = 0.06f,
+            CeasefireDecayRate  = 0.15f
+        };
         var warProfile = new FieldProfile("war.demo")
         {
-            PropagationRate    = 0.20f,
-            DecayRate          = 0.08f,
-            EdgeResistanceScale = 1.2f,
-            MinLogAmpClamp     = -10f,
-            MaxLogAmpClamp     =  10f,
-            LogEpsilon         = 0.0001f
+            PropagationRate     = 0.04f,
+            DecayRate           = 0.25f,
+            EdgeResistanceScale = 1.5f,
+            MinLogAmpClamp      = 0f,
+            MaxLogAmpClamp      = 5f,
+            LogEpsilon          = 0.0001f
         };
-        var warConfig = new WarConfig();
         _war = new WarSystem(_dim, warProfile, warConfig);
 
-        // Light war pressure at north; will propagate
+        // War starts active at north — DoTick will ceasefire it after 20 ticks
         _war.DeclareWar(North);
 
+        // ── Faction ───────────────────────────────────────────────────────
         var presenceProfile = new FieldProfile("faction.presence.demo")
         {
-            PropagationRate     = 0.10f,
-            DecayRate           = 0.03f,
+            PropagationRate     = 0.03f,
+            DecayRate           = 0.12f,
             EdgeResistanceScale = 1f,
-            MinLogAmpClamp      = -10f,
-            MaxLogAmpClamp      =  10f,
+            MinLogAmpClamp      = -5f,
+            MaxLogAmpClamp      =  5f,
             LogEpsilon          = 0.0001f
         };
         var influenceProfile = new FieldProfile("faction.influence.demo")
         {
-            PropagationRate     = 0.12f,
-            DecayRate           = 0.02f,
+            PropagationRate     = 0.04f,
+            DecayRate           = 0.10f,
             EdgeResistanceScale = 0.8f,
-            MinLogAmpClamp      = -10f,
-            MaxLogAmpClamp      =  10f,
+            MinLogAmpClamp      = -5f,
+            MaxLogAmpClamp      =  5f,
             LogEpsilon          = 0.0001f
         };
         var stabilityProfile = new FieldProfile("faction.stability.demo")
         {
-            PropagationRate     = 0.05f,
-            DecayRate           = 0.01f,
+            PropagationRate     = 0.02f,
+            DecayRate           = 0.08f,
             EdgeResistanceScale = 1.5f,
-            MinLogAmpClamp      = -10f,
-            MaxLogAmpClamp      =  10f,
+            MinLogAmpClamp      = -5f,
+            MaxLogAmpClamp      =  5f,
             LogEpsilon          = 0.0001f
         };
         _factions = new FactionSystem(_dim, presenceProfile, influenceProfile, stabilityProfile);
 
-        // Red dominates hub + west; blue holds east
-        _factions.AddPresence(Hub,   FactionRed,  2.0f);
-        _factions.AddPresence(West,  FactionRed,  1.5f);
-        _factions.AddPresence(North, FactionRed,  0.8f);
-        _factions.AddPresence(East,  FactionBlue, 2.0f);
-        _factions.AddPresence(South, FactionBlue, 1.0f);
+        // Seed: red holds hub+west+north, blue holds east+south
+        _factions.AddPresence(Hub,   FactionRed,  1.5f);
+        _factions.AddPresence(West,  FactionRed,  1.2f);
+        _factions.AddPresence(North, FactionRed,  0.6f);
+        _factions.AddPresence(East,  FactionBlue, 1.5f);
+        _factions.AddPresence(South, FactionBlue, 0.9f);
     }
 
     // ── Tick loop ─────────────────────────────────────────────────────────
@@ -184,23 +196,34 @@ public sealed class SimulationRunner : MonoBehaviour
         _tick++;
         float dt = _deltaTime;
 
-        // Economy — inject ongoing trade at hub, then propagate both fields
-        _economy.InjectTrade(Hub, "ore",   _tradeUnitsPerTick * 0.5f);
-        _economy.InjectTrade(South, "water", _tradeUnitsPerTick);
+        // Economy — small steady injection each tick; equilibrium is bounded by decay
+        _economy.InjectTrade(Hub,   "ore",   _tradeUnitsPerTick * 0.4f);
+        _economy.InjectTrade(South, "water", _tradeUnitsPerTick * 0.6f);
 
         Propagator.Step(_dim, _economy.Availability,  dt);
         Propagator.Step(_dim, _economy.PricePressure, dt);
 
-        // War — pulse at north, propagate
-        if (_tick % 4 == 0)
+        // War — active at north for first 20 ticks, then ceasefire so it decays
+        if (_tick == 20)
+            _war.DeclareCeasefire(North);
+        // Re-ignite briefly every 60 ticks so the wave is visible cycling
+        if (_tick % 60 == 30)
             _war.DeclareWar(North);
+        if (_tick % 60 == 40)
+            _war.DeclareCeasefire(North);
 
         _war.Tick(dt);
 
-        // Faction — propagate all three fields
+        // Faction — re-inject presence every 10 ticks to show ongoing rivalry
+        if (_tick % 10 == 0)
+        {
+            _factions.AddPresence(Hub,  FactionRed,  0.15f);
+            _factions.AddPresence(West, FactionRed,  0.10f);
+            _factions.AddPresence(East, FactionBlue, 0.15f);
+            _factions.AddPresence(South, FactionBlue, 0.10f);
+        }
         _factions.Tick(dt);
 
-        // Notify the debugger
         DimensionProvider.NotifyTick(_tick);
     }
 }
