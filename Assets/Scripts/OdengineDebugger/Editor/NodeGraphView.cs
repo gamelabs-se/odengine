@@ -168,7 +168,7 @@ namespace OdengineDebugger.Editor
         {
             Vector2 dir  = (to - from).normalized;
             Vector2 tip  = to - dir * NodeRadius;
-            Vector2 perp = new(-dir.y, dir.x) * 5f;
+            Vector2 perp = new Vector2(-dir.y, dir.x) * 5f;
 
             Handles.color = color;
             Handles.DrawAAPolyLine(1.5f,
