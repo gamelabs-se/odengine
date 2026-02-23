@@ -37,13 +37,12 @@ namespace Odengine.Fields
         public FieldProfile Profile { get; }
 
         private readonly Dictionary<FieldKey, float> _logAmps;
-        private const float LogEpsilon = 0.0001f;
 
         public ScalarField(string fieldId, FieldProfile profile)
         {
             if (string.IsNullOrEmpty(fieldId))
                 throw new ArgumentException("FieldId cannot be null or empty", nameof(fieldId));
-            
+
             FieldId = fieldId;
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
             _logAmps = new Dictionary<FieldKey, float>();
@@ -53,7 +52,7 @@ namespace Odengine.Fields
         {
             if (string.IsNullOrEmpty(nodeId) || string.IsNullOrEmpty(channelId))
                 return 0f;
-            
+
             var key = new FieldKey(nodeId, channelId);
             return _logAmps.TryGetValue(key, out float logAmp) ? logAmp : 0f;
         }
@@ -75,7 +74,7 @@ namespace Odengine.Fields
             var key = new FieldKey(nodeId, channelId);
 
             // Remove if effectively zero (neutral)
-            if (MathF.Abs(logAmp) < LogEpsilon)
+            if (MathF.Abs(logAmp) < Profile.LogEpsilon)
             {
                 _logAmps.Remove(key);
                 return;

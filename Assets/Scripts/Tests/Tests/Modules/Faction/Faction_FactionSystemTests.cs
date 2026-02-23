@@ -109,7 +109,7 @@ namespace Odengine.Tests.Faction
         {
             var fs = MakeSystem();
             fs.AddPresence("earth", "empire_red", 1.0f);
-            fs.AddPresence("earth", "pirates",    1.5f);
+            fs.AddPresence("earth", "pirates", 1.5f);
             Assert.That(fs.GetDominantFaction("earth"), Is.EqualTo("pirates"));
         }
 
@@ -172,7 +172,7 @@ namespace Odengine.Tests.Faction
         public void TotalPresence_MultipleFactions_IsSumOfLogAmps()
         {
             var fs = MakeSystem();
-            fs.AddPresence("earth", "empire_red",  1.0f);
+            fs.AddPresence("earth", "empire_red", 1.0f);
             fs.AddPresence("earth", "empire_blue", 2.0f);
             Assert.That(fs.GetTotalPresenceLogAmp("earth"), Is.EqualTo(3.0f).Within(1e-5f));
         }
@@ -202,7 +202,7 @@ namespace Odengine.Tests.Faction
         public void IsContested_TwoFactionsFarApart_IsFalse()
         {
             var fs = MakeSystem();
-            fs.AddPresence("earth", "empire_red",  2.0f);
+            fs.AddPresence("earth", "empire_red", 2.0f);
             fs.AddPresence("earth", "empire_blue", 0.5f); // gap = 1.5 > default 0.3
             Assert.That(fs.IsContested("earth"), Is.False);
         }
@@ -211,7 +211,7 @@ namespace Odengine.Tests.Faction
         public void IsContested_TwoFactionsCloselyMatched_IsTrue()
         {
             var fs = MakeSystem();
-            fs.AddPresence("earth", "empire_red",  1.0f);
+            fs.AddPresence("earth", "empire_red", 1.0f);
             fs.AddPresence("earth", "empire_blue", 0.8f); // gap = 0.2 < 0.3
             Assert.That(fs.IsContested("earth"), Is.True);
         }
@@ -220,7 +220,7 @@ namespace Odengine.Tests.Faction
         public void IsContested_OneNegativePresence_IsFalse()
         {
             var fs = MakeSystem();
-            fs.AddPresence("earth", "empire_red",   1.0f);
+            fs.AddPresence("earth", "empire_red", 1.0f);
             fs.AddPresence("earth", "empire_blue", -1.0f);
             Assert.That(fs.IsContested("earth"), Is.False,
                 "Faction below baseline is not a valid contender");
@@ -230,7 +230,7 @@ namespace Odengine.Tests.Faction
         public void IsContested_CustomGapThreshold_Respected()
         {
             var fs = MakeSystem();
-            fs.AddPresence("earth", "empire_red",  1.0f);
+            fs.AddPresence("earth", "empire_red", 1.0f);
             fs.AddPresence("earth", "empire_blue", 0.5f); // gap = 0.5
             Assert.That(fs.IsContested("earth", gapThreshold: 0.3f), Is.False);
             Assert.That(fs.IsContested("earth", gapThreshold: 0.6f), Is.True);
@@ -316,7 +316,7 @@ namespace Odengine.Tests.Faction
 
             var fs = new FactionSystem(
                 dim,
-                MakeProfile("faction.presence",  propagation: 0.5f),
+                MakeProfile("faction.presence", propagation: 0.5f),
                 MakeProfile("faction.influence"),
                 MakeProfile("faction.stability"));
 
@@ -425,8 +425,8 @@ namespace Odengine.Tests.Faction
         public void OnDominanceChanged_MultipleNodes_EachFiresIndependently()
         {
             var fs = MakeSystem();
-            fs.AddPresence("earth", "empire_red",  1.0f);
-            fs.AddPresence("mars",  "empire_blue", 1.0f);
+            fs.AddPresence("earth", "empire_red", 1.0f);
+            fs.AddPresence("mars", "empire_blue", 1.0f);
 
             var events = new List<string>();
             fs.OnDominanceChanged = (n, _, _) => events.Add(n);
@@ -447,8 +447,10 @@ namespace Odengine.Tests.Faction
             warDim.AddNode("frontier");
             var war = new WarSystem(warDim, new FieldProfile("war.exposure")
             {
-                PropagationRate = 0f, DecayRate = 0f,
-                MinLogAmpClamp = -20f, MaxLogAmpClamp = 20f
+                PropagationRate = 0f,
+                DecayRate = 0f,
+                MinLogAmpClamp = -20f,
+                MaxLogAmpClamp = 20f
             });
 
             var fs = MakeSystem();
@@ -472,15 +474,15 @@ namespace Odengine.Tests.Faction
         public void Integration_WarErodesAllFactions_NotJustOne()
         {
             var fs = MakeSystem();
-            fs.AddPresence("frontier", "empire_red",  2.0f);
+            fs.AddPresence("frontier", "empire_red", 2.0f);
             fs.AddPresence("frontier", "empire_blue", 2.0f);
 
             float warImpulse = 0.5f;
-            fs.AddPresence("frontier", "empire_red",  -warImpulse);
+            fs.AddPresence("frontier", "empire_red", -warImpulse);
             fs.AddPresence("frontier", "empire_blue", -warImpulse);
             fs.Tick(1f);
 
-            Assert.That(fs.Presence.GetLogAmp("frontier", "empire_red"),  Is.LessThan(2.0f));
+            Assert.That(fs.Presence.GetLogAmp("frontier", "empire_red"), Is.LessThan(2.0f));
             Assert.That(fs.Presence.GetLogAmp("frontier", "empire_blue"), Is.LessThan(2.0f));
         }
 
@@ -493,8 +495,8 @@ namespace Odengine.Tests.Faction
 
             for (int i = 0; i < 20; i++)
             {
-                fs.AddPresence("earth", "empire_red",  -0.15f);
-                fs.AddPresence("earth", "empire_blue",  0.2f);
+                fs.AddPresence("earth", "empire_red", -0.15f);
+                fs.AddPresence("earth", "empire_blue", 0.2f);
                 fs.Tick(1f);
             }
 
@@ -510,20 +512,20 @@ namespace Odengine.Tests.Faction
         public void Scenario_500Ticks_NoNaN_NoInfinity()
         {
             var fs = MakeSystem();
-            fs.AddPresence("earth",    "empire_red",   2.0f);
-            fs.AddPresence("mars",     "empire_blue",  1.8f);
-            fs.AddPresence("frontier", "empire_red",   0.8f);
-            fs.AddPresence("frontier", "empire_blue",  0.9f);
+            fs.AddPresence("earth", "empire_red", 2.0f);
+            fs.AddPresence("mars", "empire_blue", 1.8f);
+            fs.AddPresence("frontier", "empire_red", 0.8f);
+            fs.AddPresence("frontier", "empire_blue", 0.9f);
 
-            var nodes    = new[] { "earth", "mars", "frontier" };
+            var nodes = new[] { "earth", "mars", "frontier" };
             var factions = new[] { "empire_red", "empire_blue" };
 
             for (int tick = 0; tick < 500; tick++)
             {
                 if (tick % 50 == 0)
                 {
-                    fs.AddPresence("frontier", "empire_red",  -0.1f);
-                    fs.AddPresence("frontier", "empire_blue",  0.1f);
+                    fs.AddPresence("frontier", "empire_red", -0.1f);
+                    fs.AddPresence("frontier", "empire_blue", 0.1f);
                 }
                 fs.Tick(1f);
 
@@ -532,7 +534,7 @@ namespace Odengine.Tests.Faction
                     foreach (var faction in factions)
                     {
                         float p = fs.Presence.GetLogAmp(node, faction);
-                        Assert.That(float.IsNaN(p),      Is.False, $"NaN at tick {tick} {node}/{faction}");
+                        Assert.That(float.IsNaN(p), Is.False, $"NaN at tick {tick} {node}/{faction}");
                         Assert.That(float.IsInfinity(p), Is.False, $"Inf at tick {tick} {node}/{faction}");
                     }
                 }
@@ -563,14 +565,14 @@ namespace Odengine.Tests.Faction
             var flips = new List<(string prev, string next)>();
             fs.OnDominanceChanged = (_, p, nx) => flips.Add((p, nx));
 
-            fs.AddPresence("border", "empire_red",  1.0f);
+            fs.AddPresence("border", "empire_red", 1.0f);
             fs.AddPresence("border", "empire_blue", 0.9f);
             fs.Tick(1f);
 
             for (int i = 0; i < 100; i++)
             {
                 if (i % 10 < 5) fs.AddPresence("border", "empire_blue", 0.05f);
-                else             fs.AddPresence("border", "empire_red",  0.05f);
+                else fs.AddPresence("border", "empire_red", 0.05f);
                 fs.Tick(1f);
             }
 
@@ -588,7 +590,7 @@ namespace Odengine.Tests.Faction
             float Run()
             {
                 var fs = MakeSystem();
-                fs.AddPresence("earth", "empire_red",  1.5f);
+                fs.AddPresence("earth", "empire_red", 1.5f);
                 fs.AddPresence("earth", "empire_blue", 0.8f);
                 for (int i = 0; i < 50; i++)
                 {
@@ -607,13 +609,13 @@ namespace Odengine.Tests.Faction
             string RunOrder(string first, string second)
             {
                 var fs = MakeSystem();
-                fs.AddPresence("node", first,  1.0f);
+                fs.AddPresence("node", first, 1.0f);
                 fs.AddPresence("node", second, 1.0f); // equal logAmps — tests Ordinal tie-break
                 return fs.GetDominantFaction("node");
             }
 
             Assert.That(RunOrder("empire_alpha", "empire_beta"), Is.EqualTo("empire_alpha"));
-            Assert.That(RunOrder("empire_beta",  "empire_alpha"), Is.EqualTo("empire_alpha"),
+            Assert.That(RunOrder("empire_beta", "empire_alpha"), Is.EqualTo("empire_alpha"),
                 "Dominance must not depend on insertion order");
         }
 
@@ -675,7 +677,7 @@ namespace Odengine.Tests.Faction
         {
             var dim = EmptyDim();
             _ = MakeSystem(dim);
-            Assert.That(dim.GetField("faction.presence"),  Is.Not.Null);
+            Assert.That(dim.GetField("faction.presence"), Is.Not.Null);
             Assert.That(dim.GetField("faction.influence"), Is.Not.Null);
             Assert.That(dim.GetField("faction.stability"), Is.Not.Null);
         }

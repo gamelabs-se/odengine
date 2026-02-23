@@ -90,9 +90,12 @@ namespace Odengine.Faction
             FieldProfile stabilityProfile)
         {
             _dimension = dimension ?? throw new ArgumentNullException(nameof(dimension));
-            Presence  = dimension.AddField("faction.presence",  presenceProfile  ?? throw new ArgumentNullException(nameof(presenceProfile)));
-            Influence = dimension.AddField("faction.influence", influenceProfile ?? throw new ArgumentNullException(nameof(influenceProfile)));
-            Stability = dimension.AddField("faction.stability", stabilityProfile ?? throw new ArgumentNullException(nameof(stabilityProfile)));
+            // GetOrCreateField: safe for both fresh start and post-snapshot resume.
+            // On resume, RestoreFields runs first and creates the field with the saved profile;
+            // subsequent GetOrCreateField calls return the existing field unchanged.
+            Presence  = dimension.GetOrCreateField("faction.presence",  presenceProfile  ?? throw new ArgumentNullException(nameof(presenceProfile)));
+            Influence = dimension.GetOrCreateField("faction.influence", influenceProfile ?? throw new ArgumentNullException(nameof(influenceProfile)));
+            Stability = dimension.GetOrCreateField("faction.stability", stabilityProfile ?? throw new ArgumentNullException(nameof(stabilityProfile)));
         }
 
         // ── Impulse API ─────────────────────────────────────────────────────────
@@ -140,7 +143,7 @@ namespace Odengine.Faction
             foreach (var ch in channels)
             {
                 float v = Presence.GetLogAmp(nodeId, ch);
-                if (v > best)   { second = best; best = v; }
+                if (v > best) { second = best; best = v; }
                 else if (v > second) second = v;
             }
 
@@ -187,11 +190,27 @@ namespace Odengine.Faction
         {
             if (dt <= 0f) return;
 
-            Propagator.Step(_dimension, Presence,  dt);
+            Propagator.Step(_dimension, Presence, dt);
             Propagator.Step(_dimension, Influence, dt);
             Propagator.Step(_dimension, Stability, dt);
 
             CheckDominanceChanges();
+        }
+
+        // ── Snapshot support ──────────────────────────────────────────────────────
+
+        // Field state (faction.presence / .influence / .stability): serialized automatically
+        // by SnapshotWriter. _lastDominant is a reconstructable cache — NOT serialized;
+        // rebuilt by PostLoad() so the dominance-change callback fires correctly after resume.
+        // OnDominanceChanged: NOT serialized — re-register after load.
+        public void PostLoad()
+        {
+            _lastDominant.Clear();
+            foreach (var nodeId in Presence.GetActiveNodeIdsSorted())
+            {
+                string dominant = Presence.GetDominantChannel(nodeId);
+                if (dominant != null) _lastDominant[nodeId] = dominant;
+            }
         }
 
         // ── Private ───────────────────────────────────────────────────────────────
@@ -222,7 +241,7 @@ namespace Odengine.Faction
             foreach (var (nodeId, oldDom, newDom) in changes)
             {
                 if (newDom == null) _lastDominant.Remove(nodeId);
-                else                _lastDominant[nodeId] = newDom;
+                else _lastDominant[nodeId] = newDom;
 
                 OnDominanceChanged?.Invoke(nodeId, oldDom, newDom);
             }

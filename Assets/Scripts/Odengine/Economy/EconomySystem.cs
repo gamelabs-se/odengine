@@ -12,8 +12,9 @@ namespace Odengine.Economy
         public EconomySystem(Dimension dimension, FieldProfile profile)
         {
             _dimension = dimension;
-            Availability = dimension.AddField("economy.availability", profile);
-            PricePressure = dimension.AddField("economy.pricePressure", profile);
+            // GetOrCreateField: safe for both fresh start and post-snapshot resume.
+            Availability  = dimension.GetOrCreateField("economy.availability",  profile);
+            PricePressure = dimension.GetOrCreateField("economy.pricePressure", profile);
         }
 
         public float SamplePrice(string nodeId, string itemId, float baseValue)

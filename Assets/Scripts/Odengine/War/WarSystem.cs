@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using Odengine.Core;
 using Odengine.Fields;
+using Odengine.Serialization;
 
 namespace Odengine.War
 {
@@ -29,21 +32,15 @@ namespace Odengine.War
     ///
     /// No Unity dependencies, no event bus, no WorldState. Plain method calls.
     /// </summary>
-    public sealed class WarSystem
+    public sealed class WarSystem : ISnapshotParticipant
     {
-        // ── Exposure dynamics ───────────────────────────────────────────────
-        private const float ExposureGrowthRate = 0.05f;   // logAmp/tick at war
-        private const float AmbientDecayRate = 0.02f;   // logAmp/tick in peace
-        private const float CeasefireDecayRate = 0.06f;   // logAmp/tick cooling
-        private const float ExposureEpsilon = 0.0001f; // treat as zero
-
-        // Single channel name for the exposure field
-        // (one dimension per node — the field is effectively a node→logAmp map)
-        private const string ExposureChannel = "x";
-
-        // ── Occupation dynamics ─────────────────────────────────────────────
-        private const float OccupationBaseRate = 0.1f;  // 1/ticks for empty node
-        private const float OccupationStabilityResist = 0.2f;  // stability dampens progress
+        // ── Config ─────────────────────────────────────────────────────────
+        // Serialization note:
+        //   Field state (war.exposure ScalarField): serialized automatically by SnapshotWriter.
+        //   Non-field state (_activeWarNodes, _coolingNodes, _stability, _occupations) +
+        //   config values: serialized via ISnapshotParticipant (SystemId = "war.system").
+        //   Callbacks (OnOccupationComplete): not serialized — re-register after load.
+        private readonly WarConfig _config;
 
         // ── State sets ──────────────────────────────────────────────────────
         private readonly HashSet<string> _activeWarNodes = new HashSet<string>(StringComparer.Ordinal);
@@ -75,11 +72,17 @@ namespace Odengine.War
         /// <param name="dimension">Shared Dimension. WarSystem registers its own fields.</param>
         /// <param name="exposureProfile">FieldProfile for the exposure field.
         ///   Tip: set PropagationRate and DecayRate to 0 and drive them manually via Tick()
-        ///   so that state-machine logic (active/cooling/ambient) controls decay precisely.</param>
-        public WarSystem(Dimension dimension, FieldProfile exposureProfile)
+        ///   so that state-machine logic (active/cooling/ambient) controls decay precisely.
+        ///   On resume: pass any profile — the saved profile is restored by DeserializeSystemState.</param>
+        /// <param name="config">Tuning constants. Null = defaults.
+        ///   On resume: pass any config — saved config is restored by DeserializeSystemState.</param>
+        public WarSystem(Dimension dimension, FieldProfile exposureProfile, WarConfig config = null)
         {
             _dimension = dimension ?? throw new ArgumentNullException(nameof(dimension));
-            Exposure = dimension.AddField("war.exposure", exposureProfile);
+            _config = config ?? new WarConfig();
+            // GetOrCreateField: safe for both fresh start and post-snapshot resume
+            // (RestoreFields may have already registered this field with the saved profile)
+            Exposure = dimension.GetOrCreateField("war.exposure", exposureProfile);
         }
 
         // ── Public API ───────────────────────────────────────────────────────
@@ -140,14 +143,14 @@ namespace Odengine.War
         /// 1.0 = neutral/peace, values > 1.0 = war pressure present.
         /// </summary>
         public float GetExposureMultiplier(string nodeId) =>
-            Exposure.GetMultiplier(nodeId, ExposureChannel);
+            Exposure.GetMultiplier(nodeId, _config.ExposureChannelId);
 
         /// <summary>
         /// Read raw logAmp war exposure at a node.
         /// 0.0 = peace. Useful for threshold checks without exp().
         /// </summary>
         public float GetExposureLogAmp(string nodeId) =>
-            Exposure.GetLogAmp(nodeId, ExposureChannel);
+            Exposure.GetLogAmp(nodeId, _config.ExposureChannelId);
 
         /// <summary>Returns true if the node is in the active-war set.</summary>
         public bool IsAtWar(string nodeId) => _activeWarNodes.Contains(nodeId);
@@ -162,6 +165,10 @@ namespace Odengine.War
         /// <summary>Returns the current attacker id for a node occupation, or null if none.</summary>
         public string GetOccupationAttacker(string nodeId) =>
             _occupations.TryGetValue(nodeId, out var o) ? o.attackerId : null;
+
+        /// <summary>Returns the stability value [0..1] for a node, or 0f if unset.</summary>
+        public float GetNodeStability(string nodeId) =>
+            _stability.TryGetValue(nodeId, out float s) ? s : 0f;
 
         // ── Tick ─────────────────────────────────────────────────────────────
 
@@ -183,31 +190,32 @@ namespace Odengine.War
 
             foreach (var nodeId in nodeIds)
             {
-                float currentLogAmp = Exposure.GetLogAmp(nodeId, ExposureChannel);
+                string ch = _config.ExposureChannelId;
+                float currentLogAmp = Exposure.GetLogAmp(nodeId, ch);
 
                 if (_activeWarNodes.Contains(nodeId))
                 {
                     // Active war: exposure grows
-                    Exposure.AddLogAmp(nodeId, ExposureChannel, ExposureGrowthRate * dt);
+                    Exposure.AddLogAmp(nodeId, ch, _config.ExposureGrowthRate * dt);
                 }
                 else if (_coolingNodes.Contains(nodeId))
                 {
                     // Ceasefire: accelerated decay — clamp so logAmp never goes below zero
-                    if (currentLogAmp > ExposureEpsilon)
+                    if (currentLogAmp > _config.ExposureEpsilon)
                     {
-                        float decay = MathF.Min(currentLogAmp, CeasefireDecayRate * dt);
-                        Exposure.AddLogAmp(nodeId, ExposureChannel, -decay);
+                        float decay = MathF.Min(currentLogAmp, _config.CeasefireDecayRate * dt);
+                        Exposure.AddLogAmp(nodeId, ch, -decay);
                     }
 
-                    float newLogAmp = Exposure.GetLogAmp(nodeId, ExposureChannel);
-                    if (newLogAmp <= ExposureEpsilon)
+                    float newLogAmp = Exposure.GetLogAmp(nodeId, ch);
+                    if (newLogAmp <= _config.ExposureEpsilon)
                         toRemoveFromCooling.Add(nodeId);
                 }
-                else if (currentLogAmp > ExposureEpsilon)
+                else if (currentLogAmp > _config.ExposureEpsilon)
                 {
                     // Ambient peace: slow natural decay — clamp so logAmp never goes below zero
-                    float decay = MathF.Min(currentLogAmp, AmbientDecayRate * dt);
-                    Exposure.AddLogAmp(nodeId, ExposureChannel, -decay);
+                    float decay = MathF.Min(currentLogAmp, _config.AmbientDecayRate * dt);
+                    Exposure.AddLogAmp(nodeId, ch, -decay);
                 }
             }
 
@@ -228,8 +236,8 @@ namespace Odengine.War
                 if (!_occupations.TryGetValue(nodeId, out var occ)) continue;
 
                 _stability.TryGetValue(nodeId, out float stab);
-                float resistance = OccupationStabilityResist * stab;
-                float rate = OccupationBaseRate / (1f + resistance);
+                float resistance = _config.OccupationStabilityResist * stab;
+                float rate = _config.OccupationBaseRate / (1f + resistance);
                 float newProgress = occ.progress + rate * dt;
 
                 if (newProgress >= 1f)
@@ -259,12 +267,130 @@ namespace Odengine.War
             var set = new HashSet<string>(StringComparer.Ordinal);
             foreach (var n in _activeWarNodes) set.Add(n);
             foreach (var n in _coolingNodes) set.Add(n);
-            foreach (var n in Exposure.GetActiveNodeIdsSortedForChannel(ExposureChannel))
+            foreach (var n in Exposure.GetActiveNodeIdsSortedForChannel(_config.ExposureChannelId))
                 set.Add(n);
 
             var list = new List<string>(set);
             list.Sort(StringComparer.Ordinal);
             return list;
         }
-    }
+        // ── ISnapshotParticipant ──────────────────────────────────────────────
+
+        public string SystemId => "war.system";
+
+        /// <summary>
+        /// Blob layout v1:
+        ///   [version:byte=1]
+        ///   WarConfig: ExposureGrowthRate(f) AmbientDecayRate(f) CeasefireDecayRate(f)
+        ///              ExposureEpsilon(f) ExposureChannelId(str) OccupationBaseRate(f)
+        ///              OccupationStabilityResist(f)
+        ///   _activeWarNodes:  count(i32) [str…]
+        ///   _coolingNodes:    count(i32) [str…]
+        ///   _stability:       count(i32) [key(str) value(f32)…]
+        ///   _occupations:     count(i32) [nodeId(str) attackerId(str) progress(f32)…]
+        ///   All collections sorted Ordinally for determinism.
+        /// </summary>
+        public byte[] SerializeSystemState()
+        {
+            using var ms = new MemoryStream();
+            using var w  = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: false);
+
+            w.Write((byte)1); // blob version
+
+            // WarConfig
+            w.Write(_config.ExposureGrowthRate);
+            w.Write(_config.AmbientDecayRate);
+            w.Write(_config.CeasefireDecayRate);
+            w.Write(_config.ExposureEpsilon);
+            WriteBlobStr(w, _config.ExposureChannelId);
+            w.Write(_config.OccupationBaseRate);
+            w.Write(_config.OccupationStabilityResist);
+
+            // _activeWarNodes (sorted)
+            var active = new List<string>(_activeWarNodes);
+            active.Sort(StringComparer.Ordinal);
+            w.Write(active.Count);
+            foreach (var n in active) WriteBlobStr(w, n);
+
+            // _coolingNodes (sorted)
+            var cooling = new List<string>(_coolingNodes);
+            cooling.Sort(StringComparer.Ordinal);
+            w.Write(cooling.Count);
+            foreach (var n in cooling) WriteBlobStr(w, n);
+
+            // _stability (sorted by key)
+            var stabKeys = new List<string>(_stability.Keys);
+            stabKeys.Sort(StringComparer.Ordinal);
+            w.Write(stabKeys.Count);
+            foreach (var k in stabKeys) { WriteBlobStr(w, k); w.Write(_stability[k]); }
+
+            // _occupations (sorted by nodeId)
+            var occKeys = new List<string>(_occupations.Keys);
+            occKeys.Sort(StringComparer.Ordinal);
+            w.Write(occKeys.Count);
+            foreach (var k in occKeys)
+            {
+                var (attackerId, progress) = _occupations[k];
+                WriteBlobStr(w, k);
+                WriteBlobStr(w, attackerId);
+                w.Write(progress);
+            }
+
+            return ms.ToArray();
+        }
+
+        public void DeserializeSystemState(byte[] payload, int blobSchemaVersion)
+        {
+            using var ms = new MemoryStream(payload, writable: false);
+            using var r  = new BinaryReader(ms, Encoding.UTF8, leaveOpen: false);
+
+            byte version = r.ReadByte();
+            if (version != 1)
+                throw new NotSupportedException(
+                    $"WarSystem blob version {version} is not supported by this build.");
+
+            // Restore WarConfig (overwrites whatever was passed to constructor)
+            _config.ExposureGrowthRate        = r.ReadSingle();
+            _config.AmbientDecayRate          = r.ReadSingle();
+            _config.CeasefireDecayRate        = r.ReadSingle();
+            _config.ExposureEpsilon           = r.ReadSingle();
+            _config.ExposureChannelId         = ReadBlobStr(r);
+            _config.OccupationBaseRate        = r.ReadSingle();
+            _config.OccupationStabilityResist = r.ReadSingle();
+
+            int activeCount = r.ReadInt32();
+            _activeWarNodes.Clear();
+            for (int i = 0; i < activeCount; i++) _activeWarNodes.Add(ReadBlobStr(r));
+
+            int coolingCount = r.ReadInt32();
+            _coolingNodes.Clear();
+            for (int i = 0; i < coolingCount; i++) _coolingNodes.Add(ReadBlobStr(r));
+
+            int stabCount = r.ReadInt32();
+            _stability.Clear();
+            for (int i = 0; i < stabCount; i++) _stability[ReadBlobStr(r)] = r.ReadSingle();
+
+            int occCount = r.ReadInt32();
+            _occupations.Clear();
+            for (int i = 0; i < occCount; i++)
+            {
+                string nodeId     = ReadBlobStr(r);
+                string attackerId = ReadBlobStr(r);
+                float  progress   = r.ReadSingle();
+                _occupations[nodeId] = (attackerId, progress);
+            }
+        }
+
+        private static void WriteBlobStr(BinaryWriter w, string s)
+        {
+            var bytes = Encoding.UTF8.GetBytes(s ?? string.Empty);
+            w.Write(bytes.Length);
+            w.Write(bytes);
+        }
+
+        private static string ReadBlobStr(BinaryReader r)
+        {
+            int len = r.ReadInt32();
+            return len == 0 ? string.Empty : Encoding.UTF8.GetString(r.ReadBytes(len));
+        }    }
 }

@@ -590,7 +590,7 @@ namespace Odengine.Tests.Core.Fields
         public void GetDominantChannel_MixedPositiveAndNegative_IgnoresNegative()
         {
             var field = new ScalarField("f", DefaultProfile());
-            field.SetLogAmp("n", "faction_a",  1.0f);
+            field.SetLogAmp("n", "faction_a", 1.0f);
             field.SetLogAmp("n", "faction_b", -2.0f); // very negative — should not win
             Assert.That(field.GetDominantChannel("n"), Is.EqualTo("faction_a"));
         }
@@ -647,9 +647,9 @@ namespace Odengine.Tests.Core.Fields
         public void GetDominantChannel_ThreeFactionsOneNegativeOneTie_IgnoresNegative()
         {
             var field = new ScalarField("f", DefaultProfile());
-            field.SetLogAmp("n", "empire_red",  1.0f);
+            field.SetLogAmp("n", "empire_red", 1.0f);
             field.SetLogAmp("n", "empire_blue", 1.0f);  // tie with red
-            field.SetLogAmp("n", "pirates",    -0.5f);  // below baseline
+            field.SetLogAmp("n", "pirates", -0.5f);  // below baseline
             // Tie between red and blue — ordinal order: "empire_blue" < "empire_red"
             Assert.That(field.GetDominantChannel("n"), Is.EqualTo("empire_blue"));
         }

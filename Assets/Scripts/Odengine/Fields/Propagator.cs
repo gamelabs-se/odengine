@@ -40,7 +40,7 @@ namespace Odengine.Fields
                 {
                     float sourceLogAmp = field.GetLogAmp(nodeId, channelId);
                     UnityEngine.Debug.Log($"[Propagator] Node '{nodeId}' logAmp: {sourceLogAmp}");
-                    if (MathF.Abs(sourceLogAmp) < 0.0001f)
+                    if (MathF.Abs(sourceLogAmp) < field.Profile.LogEpsilon)
                         continue;
 
                     var edges = graph.GetOutEdgesSorted(nodeId);
@@ -57,7 +57,7 @@ namespace Odengine.Fields
                         float transmissionFactor = MathF.Exp(-effectiveResistance);
                         float transmittedLogAmpDelta = sourceLogAmp * transmissionFactor * profile.PropagationRate * deltaTime;
 
-                        if (MathF.Abs(transmittedLogAmpDelta) < 0.0001f)
+                        if (MathF.Abs(transmittedLogAmpDelta) < field.Profile.LogEpsilon)
                             continue;
 
                         // Accumulate delta at destination

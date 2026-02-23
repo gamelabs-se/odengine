@@ -1,4 +1,5 @@
 # Odengine — Binary Serialization Design
+
 ### FlatBuffer-based sparse snapshot format
 
 > **Supersedes** `Docs/snapshot-strategy.md`.  
@@ -56,31 +57,31 @@
 
 ### Saved
 
-| Layer | Contents |
-|-------|----------|
-| **Graph topology** | All `Node` records (id, name) and `Edge` records (fromId, toId, resistance, tags[]). Stored in every Full snapshot; omitted from Deltas. |
+| Layer                   | Contents                                                                                                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------- |
+| **Graph topology**      | All `Node` records (id, name) and `Edge` records (fromId, toId, resistance, tags[]). Stored in every Full snapshot; omitted from Deltas.                                    |
 | **Field registrations** | For each `ScalarField`: its `fieldId` and all `FieldProfile` properties. Allows reconstructing a Dimension with the correct profile even if the active entry count is zero. |
-| **Field data (sparse)** | For each `ScalarField`: the set of `(nodeId, channelId, logAmp)` tuples where `|logAmp| > LogEpsilon`. This is exactly the contents of `ScalarField._logAmps`. |
-| **System blobs** | Opaque byte arrays emitted by `ISnapshotParticipant` implementors. Versioned per system. See §8. |
-| **Snapshot metadata** | Tick counter, sim time, creation timestamp, schema version, snapshot type (Full/Delta/Checkpoint). |
+| **Field data (sparse)** | For each `ScalarField`: the set of `(nodeId, channelId, logAmp)` tuples where `                                                                                             | logAmp | > LogEpsilon`. This is exactly the contents of `ScalarField.\_logAmps`. |
+| **System blobs**        | Opaque byte arrays emitted by `ISnapshotParticipant` implementors. Versioned per system. See §8.                                                                            |
+| **Snapshot metadata**   | Tick counter, sim time, creation timestamp, schema version, snapshot type (Full/Delta/Checkpoint).                                                                          |
 
 ### Not saved / reconstructed on load
 
-| Data | Why omitted | How restored |
-|------|------------|--------------|
-| `FactionSystem._lastDominant` | Callback-diffing cache only — not simulation truth | Reconstructed by calling `GetDominantChannel` for every active node after field restore |
-| Derived quantities (prices, dominance, is-contested) | Computed on observation; they are never stored even in memory | Re-derived from fields post-load |
-| Unity-side `MonoBehaviour` state | Out of scope; game layer manages this | Game layer handles it |
-| `ScalarField` entries at or below `LogEpsilon` | Equivalent to neutral (multiplier ≈ 1.0); omitting them is lossless | Absent entries default to 0 logAmp in `GetLogAmp` |
+| Data                                                 | Why omitted                                                         | How restored                                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `FactionSystem._lastDominant`                        | Callback-diffing cache only — not simulation truth                  | Reconstructed by calling `GetDominantChannel` for every active node after field restore |
+| Derived quantities (prices, dominance, is-contested) | Computed on observation; they are never stored even in memory       | Re-derived from fields post-load                                                        |
+| Unity-side `MonoBehaviour` state                     | Out of scope; game layer manages this                               | Game layer handles it                                                                   |
+| `ScalarField` entries at or below `LogEpsilon`       | Equivalent to neutral (multiplier ≈ 1.0); omitting them is lossless | Absent entries default to 0 logAmp in `GetLogAmp`                                       |
 
 ### Systems and their extra-state requirements
 
-| System | Fields registered | Extra non-field state | Must implement `ISnapshotParticipant`? |
-|--------|------------------|-----------------------|----------------------------------------|
-| `EconomySystem` | `economy.availability`, `economy.pricePressure` | None | No |
-| `WarSystem` | `war.exposure` | `_activeWarNodes`, `_coolingNodes`, `_stability`, `_occupations` | **Yes** |
-| `FactionSystem` | `faction.presence`, `faction.influence`, `faction.stability` | `_lastDominant` (reconstructable) | No |
-| Future systems | TBD | Only if they hold non-field state | Yes if so |
+| System          | Fields registered                                            | Extra non-field state                                            | Must implement `ISnapshotParticipant`? |
+| --------------- | ------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------- |
+| `EconomySystem` | `economy.availability`, `economy.pricePressure`              | None                                                             | No                                     |
+| `WarSystem`     | `war.exposure`                                               | `_activeWarNodes`, `_coolingNodes`, `_stability`, `_occupations` | **Yes**                                |
+| `FactionSystem` | `faction.presence`, `faction.influence`, `faction.stability` | `_lastDominant` (reconstructable)                                | No                                     |
+| Future systems  | TBD                                                          | Only if they hold non-field state                                | Yes if so                              |
 
 > **Principle**: if a system stores state in `ScalarField` it is free. If it stores state in private
 > collections (HashSets, Dictionaries) that cannot be re-derived from field data, it must implement
@@ -138,6 +139,7 @@ table FieldProfileRecord {
   decay_rate:            float = 0.0;
   min_log_amp_clamp:     float = -20.0;
   max_log_amp_clamp:     float = 20.0;
+  log_epsilon:           float = 0.0001;  // sparsity pruning threshold — must match FieldProfile.LogEpsilon
 }
 
 // A single sparse (nodeId, channelId, logAmp) entry.
@@ -247,19 +249,34 @@ A typical mid-game world: 500 nodes, 20 fields, 200 unique channelIds, 5 unique 
 
 ## 5. Sparsity — the LogEpsilon threshold
 
-`ScalarField` already enforces sparsity: any `SetLogAmp` call that would leave `|logAmp| < LogEpsilon` (0.0001f) removes the entry from `_logAmps`. This means `_logAmps.Keys` is **exactly** the set of entries the snapshot should write. No additional filtering is needed on the write path.
+`FieldProfile.LogEpsilon` (default `0.0001f`) controls sparsity: any `SetLogAmp` call
+that would leave `|logAmp| < Profile.LogEpsilon` removes the entry from `_logAmps`.
+The `Propagator` uses `field.Profile.LogEpsilon` for its skip checks too, so all three
+sites (`SetLogAmp`, propagation source skip, transmission delta skip) track the same value.
+
+**Previously** this was `private const float LogEpsilon = 0.0001f` baked into `ScalarField` —
+a compile-time constant invisible to serialization. It is now a `FieldProfile` property,
+which means it is stored per-field in `FieldProfileRecord.log_epsilon` and restored on load.
+A simulation that was run with `LogEpsilon = 0.00001f` (tighter precision) will load and
+resume with exactly that threshold — no divergence.
+
+Because `_logAmps.Keys` is exactly the set of entries that survived the threshold check,
+the snapshot write path is trivially correct:
 
 ```csharp
-// SnapshotWriter: trivially correct
+// SnapshotWriter: still trivially correct
 foreach (var (nodeId, channelId, logAmp) in field.EnumerateAllActiveSorted())
     builder.AddFieldEntry(pool[nodeId], pool[channelId], logAmp);
 ```
 
-On read, any missing `(nodeId, channelId)` entry defaults to `logAmp = 0f` in `GetLogAmp`. Loading a snapshot is therefore **lossless** for all values that were above `LogEpsilon` and **exactly neutral** for all entries below it — which is the correct semantic.
+On read, absent entries default to `logAmp = 0f`. Loading is lossless for all values
+that were above the stored threshold and exactly neutral for everything below it.
 
-### The threshold is part of the contract
+### Different fields can have different thresholds
 
-`LogEpsilon` (0.0001f) must match between the Odengine build that wrote the snapshot and the build that reads it. If `LogEpsilon` changes, old snapshots may have entries that the new engine would now consider active or inactive. The `SnapshotHeader.engine_version` field guards against this — validation mode can refuse to load cross-version snapshots.
+A high-precision economic field might use `LogEpsilon = 0.000001f`; a coarse war-exposure
+field might use `0.001f`. Both are stored and restored independently. The `Propagator`
+reads `field.Profile.LogEpsilon` at call time, so precision is always per-field-correct.
 
 ---
 
@@ -284,6 +301,7 @@ A delta entry with `new_log_amp == 0` means the entry was removed (decayed to ne
 **Delta chain**: a sequence of Full → Delta → Delta → ... → Delta. The reader walks the chain from the Full forward, applying deltas in order, to reconstruct any intermediate tick. After `DeltaChainMaxLength` deltas (configurable, default 100), `SnapshotWriter` automatically emits a new Full to restart the chain and keep seek costs bounded.
 
 To reconstruct tick T:
+
 1. Find the most recent Full at or before T.
 2. Apply each Delta in order from that Full through T.
 
@@ -321,6 +339,7 @@ The returned `Dimension` is fully functional. All field operations (`GetLogAmp`,
 Reconstructs `Dimension`, then restores system-specific state by calling `ISnapshotParticipant.DeserializeSystemState` on each registered system. After this call, `Tick()` may be called normally.
 
 **Restoration order** is fixed and must be documented per project:
+
 1. Reconstruct `Dimension` (graph + fields).
 2. Construct systems in canonical order (same order as original run).
 3. For each registered participant, call `snap.RestoreSystem(participant)`.
@@ -355,6 +374,7 @@ for (int i = 0; i < 100; i++)
 ### Validation on load
 
 `SnapshotReader` validates:
+
 - `file_identifier == "ODSN"` — wrong format.
 - `SnapshotHeader.magic == 0x4F44534E` — corrupt file.
 - `SnapshotHeader.schema_version <= CurrentSchemaVersion` — too new to load.
@@ -363,7 +383,37 @@ for (int i = 0; i < 100; i++)
 
 ---
 
-## 8. ISnapshotParticipant — the system serialization contract
+### System-level tuning constants
+
+Systems like `WarSystem` currently hold tuning constants as `private const` values
+(`ExposureGrowthRate`, `AmbientDecayRate`, `CeasefireDecayRate`, `OccupationBaseRate`,
+`OccupationStabilityResist`). These have the same problem `LogEpsilon` had: if you
+tune them between a save and a load, the resumed simulation diverges.
+
+**Required pattern for any system with tuning constants:**
+
+1. Extract constants into a dedicated `*Config` or `*Profile` data class:
+   ```csharp
+   public sealed class WarConfig
+   {
+       public float ExposureGrowthRate    { get; set; } = 0.05f;
+       public float AmbientDecayRate      { get; set; } = 0.02f;
+       public float CeasefireDecayRate    { get; set; } = 0.06f;
+       public float OccupationBaseRate    { get; set; } = 0.1f;
+       public float OccupationStabilityResist { get; set; } = 0.2f;
+   }
+   ```
+2. Pass the config to the system constructor. The system stores it.
+3. Serialize the config inside `SerializeSystemState()` (versioned, sorted).
+4. Restore it inside `DeserializeSystemState()` before any Tick is called.
+
+This is tracked as implementation work; `WarSystem` is the first system that needs it.
+Until it is done, changing `WarSystem`'s private constants between save and resume will
+cause silent divergence — treat those constants as frozen until the config struct lands.
+
+---
+
+
 
 ```csharp
 // Assets/Scripts/Odengine/Serialization/ISnapshotParticipant.cs
@@ -521,12 +571,6 @@ namespace Odengine.Serialization
         /// emits a Full to bound replay seek cost. 0 = never auto-Full.
         /// </summary>
         public int DeltaChainMaxLength = 100;
-
-        /// <summary>
-        /// LogEpsilon must match ScalarField.LogEpsilon in the writing build.
-        /// Stored here so it can be asserted on load.
-        /// </summary>
-        public float LogEpsilonThreshold = 0.0001f;
 
         /// <summary>
         /// When true, validate that all field entry nodeIds exist in the graph before
@@ -689,12 +733,12 @@ When adding a new domain system to Odengine:
 
 For each piece of state the system holds, classify it:
 
-| Category | Example | Action |
-|----------|---------|--------|
-| Stored in `ScalarField` | `EconomySystem.Availability` | Nothing — serialized automatically |
-| Non-field, not reconstructable | `WarSystem._activeWarNodes` | **Implement `ISnapshotParticipant`** |
-| Non-field, reconstructable from fields | `FactionSystem._lastDominant` | Implement `PostLoad()` only |
-| Purely transient / event plumbing | Callback delegates | Don't serialize; re-register after load |
+| Category                               | Example                       | Action                                  |
+| -------------------------------------- | ----------------------------- | --------------------------------------- |
+| Stored in `ScalarField`                | `EconomySystem.Availability`  | Nothing — serialized automatically      |
+| Non-field, not reconstructable         | `WarSystem._activeWarNodes`   | **Implement `ISnapshotParticipant`**    |
+| Non-field, reconstructable from fields | `FactionSystem._lastDominant` | Implement `PostLoad()` only             |
+| Purely transient / event plumbing      | Callback delegates            | Don't serialize; re-register after load |
 
 **Step 2 — If implementing ISnapshotParticipant**
 
@@ -723,6 +767,7 @@ Add a comment block in the system class noting:
 ### What must NOT live in non-participant state
 
 Any data that must survive save/load must be in a `ScalarField` or in a participant blob. If you find yourself with a `Dictionary` of domain facts outside both of these, you have a design problem. Either:
+
 - Move it into a `ScalarField` channel (preferred — it becomes propagatable and observable), or
 - Add the system to the participant list.
 
@@ -731,7 +776,8 @@ Any data that must survive save/load must be in a `ScalarField` or in a particip
 ## 12. Game-layer usage patterns
 
 Odengine is game-agnostic. The game layer is responsible for:
-- Deciding *when* to save (player-triggered save, autosave cadence, end-of-run).
+
+- Deciding _when_ to save (player-triggered save, autosave cadence, end-of-run).
 - Managing file paths and file formats around the snapshot bytes.
 - Storing its own additional save data (player inventory, quest flags, etc.) alongside the Odengine snapshot.
 - Re-registering callbacks after load-and-resume.
@@ -860,24 +906,24 @@ Odengine cannot guarantee correctness of game-layer save/load because it does no
 
 ## 13. Edge cases
 
-| Case | Detection | Handling |
-|------|-----------|---------- |
-| File does not start with `ODSN` identifier | `SnapshotReader` checks `file_identifier` | Throw `InvalidSnapshotException` with message |
-| `schema_version` in header is newer than current code knows | Version check in reader | Throw `SnapshotVersionException`; do not partially load |
-| `schema_version` is older — forward compat | FlatBuffers tables are read with defaults for unknown fields | Transparent — no action needed |
-| `SystemBlob.schema_version` is newer than system's code | `DeserializeSystemState` receives unknown version | System throws `NotSupportedException` with version info |
-| `SystemBlob.schema_version` is older — migration needed | Version byte in blob payload | System migrates inside `DeserializeSystemState` via version switch |
-| Field in snapshot not known to current Dimension | `RestoreFields` creates a warning log and skips | Field is silently absent post-load; no exception |
-| Node referenced in field entry not in restored graph | `ValidateGraphReferencesOnRead` catches this | Warning log + skip entry (field data is loaded but will not propagate) |
-| NaN or Infinity in `log_amp` | `ValidateLogAmpSanityOnWrite = true` catches at write time; reader always validates if `ValidateLogAmpSanityOnRead = true` | Throw on write; clamp to `MinLogAmpClamp` on read with warning |
-| Delta references a `parent_tick` not present in the index | `ReadAtTick` walks the series backwards to find the Full | If no Full found, throw `MissingParentSnapshotException` |
-| Delta chain deeper than `DeltaChainMaxLength` on read | Reader reconstructs anyway — depth is advisory for the writer | No error; deep chains are slower to reconstruct |
-| Empty field (zero active entries) | Field snapshot written with `entries: []` | `FieldProfile` is preserved; field exists in Dimension but has no active entries — correct |
-| String pool has >65535 entries | Pool uses `uint32` indices — supports ~4 billion unique strings | No practical limit |
-| Load-and-resume called on a Full (not Checkpoint) snapshot | `RestoreSystem` checks `SnapshotType` | Throw `InvalidOperationException`: "Cannot resume from a Full snapshot — use a Checkpoint" |
-| Graph topology changed between save and resume | `ValidateGraphReferencesOnRead` | Field entries for removed nodes are skipped with a warning; new nodes start neutral |
-| Two systems share a `SystemId` | `SnapshotWriter` checks for uniqueness on write | Throw `DuplicateSystemIdException` during write |
-| Dimension has a field that the snapshot does not mention | Field is constructed by the system constructor but has zero entries | Field remains at neutral — correct; corresponds to a new field added after the save was made |
+| Case                                                        | Detection                                                                                                                  | Handling                                                                                     |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| File does not start with `ODSN` identifier                  | `SnapshotReader` checks `file_identifier`                                                                                  | Throw `InvalidSnapshotException` with message                                                |
+| `schema_version` in header is newer than current code knows | Version check in reader                                                                                                    | Throw `SnapshotVersionException`; do not partially load                                      |
+| `schema_version` is older — forward compat                  | FlatBuffers tables are read with defaults for unknown fields                                                               | Transparent — no action needed                                                               |
+| `SystemBlob.schema_version` is newer than system's code     | `DeserializeSystemState` receives unknown version                                                                          | System throws `NotSupportedException` with version info                                      |
+| `SystemBlob.schema_version` is older — migration needed     | Version byte in blob payload                                                                                               | System migrates inside `DeserializeSystemState` via version switch                           |
+| Field in snapshot not known to current Dimension            | `RestoreFields` creates a warning log and skips                                                                            | Field is silently absent post-load; no exception                                             |
+| Node referenced in field entry not in restored graph        | `ValidateGraphReferencesOnRead` catches this                                                                               | Warning log + skip entry (field data is loaded but will not propagate)                       |
+| NaN or Infinity in `log_amp`                                | `ValidateLogAmpSanityOnWrite = true` catches at write time; reader always validates if `ValidateLogAmpSanityOnRead = true` | Throw on write; clamp to `MinLogAmpClamp` on read with warning                               |
+| Delta references a `parent_tick` not present in the index   | `ReadAtTick` walks the series backwards to find the Full                                                                   | If no Full found, throw `MissingParentSnapshotException`                                     |
+| Delta chain deeper than `DeltaChainMaxLength` on read       | Reader reconstructs anyway — depth is advisory for the writer                                                              | No error; deep chains are slower to reconstruct                                              |
+| Empty field (zero active entries)                           | Field snapshot written with `entries: []`                                                                                  | `FieldProfile` is preserved; field exists in Dimension but has no active entries — correct   |
+| String pool has >65535 entries                              | Pool uses `uint32` indices — supports ~4 billion unique strings                                                            | No practical limit                                                                           |
+| Load-and-resume called on a Full (not Checkpoint) snapshot  | `RestoreSystem` checks `SnapshotType`                                                                                      | Throw `InvalidOperationException`: "Cannot resume from a Full snapshot — use a Checkpoint"   |
+| Graph topology changed between save and resume              | `ValidateGraphReferencesOnRead`                                                                                            | Field entries for removed nodes are skipped with a warning; new nodes start neutral          |
+| Two systems share a `SystemId`                              | `SnapshotWriter` checks for uniqueness on write                                                                            | Throw `DuplicateSystemIdException` during write                                              |
+| Dimension has a field that the snapshot does not mention    | Field is constructed by the system constructor but has zero entries                                                        | Field remains at neutral — correct; corresponds to a new field added after the save was made |
 
 ---
 
@@ -1149,6 +1195,7 @@ The zero-copy read path requires `unsafe` code in C#. Enable it for the `Odengin
 ## Summary checklist for maintainers
 
 When adding a **new domain system**:
+
 - [ ] Classify all private state (field-backed / non-field / reconstructable)
 - [ ] Implement `ISnapshotParticipant` if non-field, non-reconstructable state exists
 - [ ] If `ISnapshotParticipant`: choose a stable `SystemId`, start blob version at `1`, write sorted output
@@ -1158,6 +1205,7 @@ When adding a **new domain system**:
 - [ ] Add serialization notes comment block to the system class
 
 When **modifying the schema** (`.fbs` file):
+
 - [ ] Only append fields to existing tables — never reorder or remove
 - [ ] Bump `schema_version` if semantics change
 - [ ] Regenerate `FlatBuffers/` with `flatc`
@@ -1165,4 +1213,6 @@ When **modifying the schema** (`.fbs` file):
 - [ ] Update this document's schema section
 
 When **modifying ScalarField**:
-- [ ] If `LogEpsilon` changes: update `SnapshotConfig.LogEpsilonThreshold` default and note that old snapshots may have entries that new code would now prune or preserve differently. Bump `schema_version`.
+
+- [ ] If `FieldProfile.LogEpsilon` default changes: existing profiles constructed without an explicit value will use the new default on load. If a snapshot stores the old value in `log_epsilon`, it will be restored correctly — no action needed. Document the change in release notes.
+- [ ] If a system's tuning constants change: ensure they are in a `*Config` struct that is stored in the system blob (see §7 system-constants note). If they are still `private const`, changing them causes silent divergence on resume.
