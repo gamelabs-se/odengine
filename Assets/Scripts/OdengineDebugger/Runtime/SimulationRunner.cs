@@ -26,17 +26,12 @@ public sealed class SimulationRunner : MonoBehaviour
     [Tooltip("dt passed to Propagator.Step each tick.")]
     [SerializeField] private float _deltaTime = 1f;
 
-    [Header("Economy")]
-    [SerializeField] private float _tradeUnitsPerTick = 5f;
-
-    [Header("War")]
-    [SerializeField] private float _warImpulsePerTick = 0.3f;
-
     // ── Runtime ───────────────────────────────────────────────────────────
 
     private Dimension      _dim;
     private EconomySystem  _economy;
     private WarSystem      _war;
+    private WarConfig      _warConfig;
     private FactionSystem  _factions;
     private ulong          _tick;
 
@@ -57,6 +52,7 @@ public sealed class SimulationRunner : MonoBehaviour
     {
         _dim = BuildDimension();
         BootstrapSystems();
+        RegisterControls();
         DimensionProvider.Register(_dim);
         StartCoroutine(TickLoop());
     }
@@ -64,6 +60,7 @@ public sealed class SimulationRunner : MonoBehaviour
     private void OnDestroy()
     {
         StopAllCoroutines();
+        SimulationControls.Clear();
         DimensionProvider.Unregister();
     }
 
@@ -126,6 +123,7 @@ public sealed class SimulationRunner : MonoBehaviour
             AmbientDecayRate    = 0.06f,
             CeasefireDecayRate  = 0.15f
         };
+        _warConfig = warConfig;
         var warProfile = new FieldProfile("war.demo")
         {
             PropagationRate     = 0.04f,
@@ -182,11 +180,9 @@ public sealed class SimulationRunner : MonoBehaviour
 
     private IEnumerator TickLoop()
     {
-        var wait = new WaitForSeconds(_tickInterval);
-
         while (true)
         {
-            yield return wait;
+            yield return new WaitForSeconds(_tickInterval);
             DoTick();
         }
     }
@@ -196,34 +192,68 @@ public sealed class SimulationRunner : MonoBehaviour
         _tick++;
         float dt = _deltaTime;
 
-        // Economy — small steady injection each tick; equilibrium is bounded by decay
-        _economy.InjectTrade(Hub,   "ore",   _tradeUnitsPerTick * 0.4f);
-        _economy.InjectTrade(South, "water", _tradeUnitsPerTick * 0.6f);
-
         Propagator.Step(_dim, _economy.Availability,  dt);
         Propagator.Step(_dim, _economy.PricePressure, dt);
-
-        // War — active at north for first 20 ticks, then ceasefire so it decays
-        if (_tick == 20)
-            _war.DeclareCeasefire(North);
-        // Re-ignite briefly every 60 ticks so the wave is visible cycling
-        if (_tick % 60 == 30)
-            _war.DeclareWar(North);
-        if (_tick % 60 == 40)
-            _war.DeclareCeasefire(North);
-
         _war.Tick(dt);
-
-        // Faction — re-inject presence every 10 ticks to show ongoing rivalry
-        if (_tick % 10 == 0)
-        {
-            _factions.AddPresence(Hub,  FactionRed,  0.15f);
-            _factions.AddPresence(West, FactionRed,  0.10f);
-            _factions.AddPresence(East, FactionBlue, 0.15f);
-            _factions.AddPresence(South, FactionBlue, 0.10f);
-        }
         _factions.Tick(dt);
 
         DimensionProvider.NotifyTick(_tick);
+    }
+
+    // ── Interactive controls ──────────────────────────────────────────────
+
+    private void RegisterControls()
+    {
+        SimulationControls.Clear();
+        string ch = _warConfig.ExposureChannelId; // "x" by default
+
+        // ── War ──────────────────────────────────────────────────────────
+        SimulationControls.RegisterNodeButton("⚔ War", "Ignite War",  "Ignite!",
+            id => _war.DeclareWar(id));
+
+        SimulationControls.RegisterNodeButton("⚔ War", "Ceasefire",   "Ceasefire",
+            id => _war.DeclareCeasefire(id));
+
+        SimulationControls.RegisterNodeSlider("⚔ War", "Strike", 0.1f, 3f, 0.5f, "logAmp",
+            (id, v) => _war.Exposure.AddLogAmp(id, ch, v));
+
+        // ── Economy ───────────────────────────────────────────────────────
+        SimulationControls.RegisterNodeSlider("💰 Economy", "Surge Ore",   1f, 30f, 5f, "units",
+            (id, v) => _economy.InjectTrade(id, "ore",   v));
+
+        SimulationControls.RegisterNodeSlider("💰 Economy", "Surge Water", 1f, 30f, 5f, "units",
+            (id, v) => _economy.InjectTrade(id, "water", v));
+
+        SimulationControls.RegisterNodeSlider("💰 Economy", "Price Shock", 0.1f, 2f, 0.5f, "logAmp",
+            (id, v) => _economy.PricePressure.AddLogAmp(id, "ore", v));
+
+        // ── Faction ───────────────────────────────────────────────────────
+        SimulationControls.RegisterNodeSlider("🏳 Faction", "Push Red",  0.1f, 2f, 0.5f, "logAmp",
+            (id, v) => _factions.AddPresence(id, FactionRed,  v));
+
+        SimulationControls.RegisterNodeSlider("🏳 Faction", "Push Blue", 0.1f, 2f, 0.5f, "logAmp",
+            (id, v) => _factions.AddPresence(id, FactionBlue, v));
+
+        SimulationControls.RegisterNodeSlider("🏳 Faction", "Destabilize", 0.1f, 2f, 0.3f, "logAmp",
+            (id, v) => {
+                _factions.Stability.AddLogAmp(id, FactionRed,  -v);
+                _factions.Stability.AddLogAmp(id, FactionBlue, -v);
+            });
+
+        // ── Sim ──────────────────────────────────────────────────────────
+        SimulationControls.RegisterSlider("⚙ Sim", "Tick Interval", 0.05f, 2f, 0.25f, "s",
+            v => _tickInterval = v);
+
+        SimulationControls.RegisterButton("⚙ Sim", "Reset Sim", () =>
+        {
+            StopAllCoroutines();
+            DimensionProvider.Unregister();
+            _tick = 0;
+            _dim = BuildDimension();
+            BootstrapSystems();
+            RegisterControls();
+            DimensionProvider.Register(_dim);
+            StartCoroutine(TickLoop());
+        });
     }
 }

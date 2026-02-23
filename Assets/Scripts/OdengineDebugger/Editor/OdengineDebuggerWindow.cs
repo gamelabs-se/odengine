@@ -32,7 +32,7 @@ namespace OdengineDebugger.Editor
     {
         // ── View mode ─────────────────────────────────────────────────────────
 
-        private enum ViewMode { HeatMap, Graph }
+        private enum ViewMode { HeatMap, Graph, Controls }
         private ViewMode _viewMode = ViewMode.HeatMap;
 
         // ── State ─────────────────────────────────────────────────────────────
@@ -40,6 +40,11 @@ namespace OdengineDebugger.Editor
         private string    _selectedFieldId;
         private Vector2   _fieldListScroll;
         private Texture2D _heatMapTex;
+
+        // Controls panel state — keyed by "group:label"
+        private readonly Dictionary<string, int>   _ctrlNodeIdx = new();
+        private readonly Dictionary<string, float> _ctrlSlider  = new();
+        private Vector2 _controlsScroll;
 
         private readonly NodeGraphView _graphView = new();
 
@@ -130,12 +135,14 @@ namespace OdengineDebugger.Editor
 
             // View toggles
             EditorGUI.BeginChangeCheck();
-            bool heatMap = GUILayout.Toggle(_viewMode == ViewMode.HeatMap, "Heat Map", EditorStyles.toolbarButton, GUILayout.Width(72));
-            bool graph   = GUILayout.Toggle(_viewMode == ViewMode.Graph,   "Graph",    EditorStyles.toolbarButton, GUILayout.Width(52));
+            bool heatMap = GUILayout.Toggle(_viewMode == ViewMode.HeatMap,   "Heat Map", EditorStyles.toolbarButton, GUILayout.Width(72));
+            bool graph   = GUILayout.Toggle(_viewMode == ViewMode.Graph,     "Graph",    EditorStyles.toolbarButton, GUILayout.Width(52));
+            bool controls= GUILayout.Toggle(_viewMode == ViewMode.Controls,  "Controls", EditorStyles.toolbarButton, GUILayout.Width(62));
             if (EditorGUI.EndChangeCheck())
             {
-                if (heatMap) _viewMode = ViewMode.HeatMap;
-                if (graph)   _viewMode = ViewMode.Graph;
+                if (heatMap)  _viewMode = ViewMode.HeatMap;
+                if (graph)    _viewMode = ViewMode.Graph;
+                if (controls) _viewMode = ViewMode.Controls;
             }
 
             GUILayout.Space(4);
@@ -152,8 +159,9 @@ namespace OdengineDebugger.Editor
             DrawFieldSidebar(new Rect(rect.x, rect.y, SidebarWidth, rect.height), dim);
 
             var content = new Rect(SidebarWidth + 1f, rect.y, rect.width - SidebarWidth - 1f, rect.height);
-            if (_viewMode == ViewMode.HeatMap) DrawHeatMap(content, dim);
-            else                               DrawGraph(content, dim);
+            if      (_viewMode == ViewMode.HeatMap)  DrawHeatMap(content, dim);
+            else if (_viewMode == ViewMode.Graph)    DrawGraph(content, dim);
+            else                                     DrawControls(content);
         }
 
         // ── Field sidebar ─────────────────────────────────────────────────────
@@ -324,6 +332,152 @@ namespace OdengineDebugger.Editor
         {
             // Future: open node detail popover
         }
+
+        // ── Controls panel ────────────────────────────────────────────────────
+
+        private void DrawControls(Rect rect)
+        {
+            EditorGUI.DrawRect(rect, new Color(0.14f, 0.15f, 0.17f));
+
+            // Build live node list for dropdowns
+            var nodeIds = DimensionProvider.Current?.Graph.GetNodeIdsSorted()
+                              .ToArray() ?? Array.Empty<string>();
+
+            GUILayout.BeginArea(rect);
+            _controlsScroll = GUILayout.BeginScrollView(_controlsScroll);
+
+            if (SimulationControls.All.Count == 0)
+            {
+                GUILayout.Space(20);
+                GUILayout.Label("No controls registered.\nPress Play and open a SimulationRunner.",
+                    EditorStyles.centeredGreyMiniLabel);
+            }
+            else
+            {
+                string currentGroup = null;
+
+                foreach (var (group, ctrl) in SimulationControls.All)
+                {
+                    // ── Group header ──────────────────────────────────────────
+                    if (group != currentGroup)
+                    {
+                        if (currentGroup != null) GUILayout.Space(6);
+                        GUILayout.Label(group, CtrlGroupStyle);
+                        var sep = GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none,
+                            GUILayout.ExpandWidth(true), GUILayout.Height(1));
+                        EditorGUI.DrawRect(sep, new Color(0.30f, 0.32f, 0.36f));
+                        GUILayout.Space(2);
+                        currentGroup = group;
+                    }
+
+                    string key = $"{group}:{ctrl.Label}";
+
+                    switch (ctrl)
+                    {
+                        // ── Simple button ──────────────────────────────────────
+                        case ButtonControl btn:
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(8);
+                            if (GUILayout.Button(btn.Label, GUILayout.Height(22)))
+                                btn.OnClick();
+                            GUILayout.EndHorizontal();
+                            break;
+
+                        // ── Node dropdown + button ─────────────────────────────
+                        case NodeButtonControl nc:
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(8);
+                            GUILayout.Label(nc.Label, CtrlLabelStyle, GUILayout.Width(110));
+                            if (!_ctrlNodeIdx.ContainsKey(key)) _ctrlNodeIdx[key] = 0;
+                            if (nodeIds.Length > 0)
+                                _ctrlNodeIdx[key] = EditorGUILayout.Popup(
+                                    _ctrlNodeIdx[key], nodeIds, GUILayout.Width(80));
+                            else
+                                GUILayout.Label("—", GUILayout.Width(80));
+                            GUILayout.Space(4);
+                            using (new EditorGUI.DisabledScope(nodeIds.Length == 0))
+                                if (GUILayout.Button(nc.Verb, GUILayout.Width(70), GUILayout.Height(20)))
+                                    nc.OnClick(nodeIds[_ctrlNodeIdx[key]]);
+                            GUILayout.EndHorizontal();
+                            break;
+
+                        // ── Node dropdown + slider + button ────────────────────
+                        case NodeSliderControl ns:
+                            if (!_ctrlNodeIdx.ContainsKey(key)) _ctrlNodeIdx[key] = 0;
+                            if (!_ctrlSlider.ContainsKey(key))  _ctrlSlider[key]  = ns.Default;
+
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(8);
+                            GUILayout.Label(ns.Label, CtrlLabelStyle, GUILayout.Width(110));
+                            if (nodeIds.Length > 0)
+                                _ctrlNodeIdx[key] = EditorGUILayout.Popup(
+                                    _ctrlNodeIdx[key], nodeIds, GUILayout.Width(80));
+                            else
+                                GUILayout.Label("—", GUILayout.Width(80));
+                            GUILayout.EndHorizontal();
+
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(8);
+                            _ctrlSlider[key] = GUILayout.HorizontalSlider(
+                                _ctrlSlider[key], ns.Min, ns.Max,
+                                GUILayout.ExpandWidth(true), GUILayout.Height(16));
+                            GUILayout.Label(
+                                $"{_ctrlSlider[key]:F2} {ns.Unit}",
+                                CtrlValueStyle, GUILayout.Width(64));
+                            using (new EditorGUI.DisabledScope(nodeIds.Length == 0))
+                                if (GUILayout.Button("Apply", GUILayout.Width(52), GUILayout.Height(18)))
+                                    ns.OnClick(nodeIds[_ctrlNodeIdx[key]], _ctrlSlider[key]);
+                            GUILayout.EndHorizontal();
+                            GUILayout.Space(2);
+                            break;
+
+                        // ── Slider only + button ───────────────────────────────
+                        case SliderControl sc:
+                            if (!_ctrlSlider.ContainsKey(key)) _ctrlSlider[key] = sc.Default;
+
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(8);
+                            GUILayout.Label(sc.Label, CtrlLabelStyle, GUILayout.Width(110));
+                            _ctrlSlider[key] = GUILayout.HorizontalSlider(
+                                _ctrlSlider[key], sc.Min, sc.Max,
+                                GUILayout.ExpandWidth(true), GUILayout.Height(16));
+                            GUILayout.Label(
+                                $"{_ctrlSlider[key]:F2} {sc.Unit}",
+                                CtrlValueStyle, GUILayout.Width(64));
+                            if (GUILayout.Button("Set", GUILayout.Width(40), GUILayout.Height(18)))
+                                sc.OnClick(_ctrlSlider[key]);
+                            GUILayout.EndHorizontal();
+                            GUILayout.Space(2);
+                            break;
+                    }
+                }
+            }
+
+            GUILayout.EndScrollView();
+            GUILayout.EndArea();
+        }
+
+        private static GUIStyle _ctrlGroupStyle;
+        private static GUIStyle CtrlGroupStyle => _ctrlGroupStyle ??= new GUIStyle(EditorStyles.boldLabel)
+        {
+            fontSize = 11,
+            padding  = new RectOffset(8, 0, 8, 2),
+            normal   = { textColor = new Color(0.85f, 0.88f, 0.95f) }
+        };
+
+        private static GUIStyle _ctrlLabelStyle;
+        private static GUIStyle CtrlLabelStyle => _ctrlLabelStyle ??= new GUIStyle(EditorStyles.label)
+        {
+            fontSize = 10,
+            normal   = { textColor = new Color(0.75f, 0.78f, 0.82f) }
+        };
+
+        private static GUIStyle _ctrlValueStyle;
+        private static GUIStyle CtrlValueStyle => _ctrlValueStyle ??= new GUIStyle(EditorStyles.miniLabel)
+        {
+            alignment = TextAnchor.MiddleRight,
+            normal    = { textColor = new Color(0.85f, 0.85f, 0.55f) }
+        };
 
         // ── Pinned time series ────────────────────────────────────────────────
 
