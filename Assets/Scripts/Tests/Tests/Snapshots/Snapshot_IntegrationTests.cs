@@ -393,8 +393,9 @@ namespace Odengine.Tests.Snapshots
 
             // Economy assertions (via field access)
             Assert.Greater(economy2.PricePressure.GetLogAmp("earth", "water"), 0f);
-            Assert.Greater(economy2.Availability.GetLogAmp("mars", "ore"), 0f,
-                "Note: availability logAmp is negative (reduced), abs > 0");
+            // InjectTrade applies -availK*units to Availability → logAmp is negative (reduced supply).
+            Assert.Less(economy2.Availability.GetLogAmp("mars", "ore"), 0f,
+                "Availability logAmp must be negative after trade injection (supply erodes availability)");
 
             // Faction assertions
             Assert.AreEqual("faction_red",  factions2.GetDominantFaction("earth"));

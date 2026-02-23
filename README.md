@@ -1,149 +1,146 @@
 # Odengine
 
-**A deterministic quantum-field-like simulation core for games.**
+**A deterministic scalar-field simulation core for Unity games.**
 
 ## What Is This?
 
-Odengine is a simulation engine where the world is represented as **nodes embedded in scalar fields**. Game facts (prices, inventories, unit compositions) are **measurements/materializations** derived from those fields—deterministically, repeatably, and observer-dependently.
+Odengine models a game world as a graph of nodes embedded in sparse scalar fields. Game facts — prices, supply, faction dominance, war pressure — are **never stored**. They are derived on observation from the underlying log-amplitude fields, deterministically and repeatably.
 
 ### Core Philosophy
 
-- **Fields are primary**: Reality is not "objects with stats"—it's **fields with values** sampled at points
-- **Measurement reveals**: A "price" or "inventory" is not stored—it's **computed on observation**
-- **Determinism**: Same seed + same inputs = identical outcomes
-- **Quantum-inspired**: Borrows the structural idea that fields + measurement are the right abstraction (not actual quantum physics)
+- **Fields are primary.** The world is not objects with stats — it is fields with values sampled at nodes.
+- **Observation derives, not stores.** A price or inventory count is computed on demand; it does not exist until measured.
+- **Determinism is non-negotiable.** Same seed + same operations = identical results, byte-for-byte.
+- **Sparse by default.** Only realized (non-neutral) `(nodeId, channelId)` pairs are stored.
 
 ## Architecture
 
-### Core Concepts
+```
+Dimension                          ← top-level container; zero Unity dependencies
+├── NodeGraph                      ← graph topology: Node + Edge (resistance, tags)
+└── Dictionary<string, ScalarField>
+        └── ScalarField            ← (nodeId × channelId) → float, stored as logAmp
+                                      accessed via ChannelView convenience facade
+```
 
-1. **OdNode**: A point/anchor in the simulation (planet, city, ship, market)
-2. **OdNodeGraph**: The topology layer (parent/child hierarchy)
-3. **ScalarField**: Maps (FieldId × NodeId) → float (the "substance" of the universe)
-4. **FieldStore**: Stores all scalar fields
-5. **Observable**: Derived fields computed on measurement (e.g., price)
-6. **MeasurementContext**: Deterministic observation context (seed, tick, observer, noise)
-7. **MeasurementCache**: Ensures coherence within a tick (same query = same result)
-8. **OdEngine**: Deterministic operators that evolve fields over time
+**Domain systems** are thin wrappers that own one or more named `ScalarField`s and expose domain-meaningful APIs on top of raw field operations.
 
-### Field Types
+| System | Fields | Extra non-field state |
+|---|---|---|
+| `EconomySystem` | `economy.availability`, `economy.pricePressure` | None |
+| `WarSystem` | `war.exposure` | `_activeWarNodes`, `_coolingNodes`, `_stability`, `_occupations` |
+| `FactionSystem` | `faction.presence`, `faction.influence`, `faction.stability` | `_lastDominant` (reconstructable) |
 
-**Stored Fields** (evolved by engines):
-- `econ.availability.water` - resource density
-- `war.intensity` - conflict pressure
-- `influence.faction.f1` - faction power
+## Log-Space Storage
 
-**Derived Fields** (computed on measurement):
-- `price.water` - function(availability, risk, war, policy)
-- `threat.perceived` - function(influence, intel, distance)
+`ScalarField` stores values as **log-amplitude** (`logAmp`). Neutral baseline: `logAmp = 0` → `multiplier = 1.0`. Missing entries are always neutral (sparse dictionary).
 
-### Components
+```csharp
+// Read — returns exp(logAmp)
+float mult = field.GetMultiplier(nodeId, channelId);
 
-Minimal, generic, numeric modifiers:
-- **EmitterComponent**: Injects value into a field (mines, factories)
-- **SinkComponent**: Removes value from a field (consumption, decay)
-- **CouplingComponent**: (TODO) Field-to-field influence
+// Write — accumulates (does not replace)
+field.AddLogAmp(nodeId, channelId, -0.1f * units);
+
+// Entries at or below LogEpsilon (0.0001f) are removed automatically
+```
 
 ## Example Usage
 
 ```csharp
-// Create world
-var world = new OdWorld(seed: 42);
+// Build simulation
+var dim = new Dimension();
+dim.Graph.AddNode("earth");
+dim.Graph.AddNode("mars");
+dim.Graph.AddEdge("earth", "mars", resistance: 0.5f, tags: new[]{"space"});
 
-// Build topology
-world.Nodes.AddNode(new OdNode("galaxy1"));
-world.Nodes.AddNode(new OdNode("system1", "galaxy1", "system"));
-world.Nodes.AddNode(new OdNode("planet1", "system1", "planet"));
+var economy = new EconomySystem(dim);
 
-// Set initial field values
-world.Fields.Set("econ.availability.water", "planet1", 100f);
+// Inject trade — log-space impulse
+economy.InjectTrade("earth", "mars", itemId: "ore", units: 10f);
 
-// Register derived observable
-var priceObs = new PriceObservable("water", "econ.availability.water", basePrice: 10f);
-world.RegisterObservable(priceObs);
+// Propagate availability field along edges
+Propagator.Step(dim, economy.Availability, dt: 1f);
 
-// Measure (observe) the price
-var ctx = new MeasurementContext(world.WorldSeed, world.CurrentTick);
-var price = world.Sample("price.water", "planet1", ctx);
+// Derive multiplier at destination
+float supplyMult = economy.Availability.GetMultiplier("mars", "ore");
 
-// Add production
-var components = new ComponentStore();
-components.Add(new EmitterComponent("planet1", "econ.availability.water", rate: 5f));
+// Snapshot the world
+var writer = new SnapshotWriter();
+byte[] checkpoint = writer.WriteCheckpoint(dim, tick: 1, simTime: 1.0,
+    participants: new ISnapshotParticipant[]{ warSystem });
 
-// Evolve world
-var engine = new EmissionEngine(components);
-engine.Tick(world, delta: 1f);
-world.AdvanceTick();
-
-// Price changes deterministically
-var newPrice = world.Sample("price.water", "planet1", 
-    new MeasurementContext(world.WorldSeed, world.CurrentTick));
+// Restore later
+var reader = new SnapshotReader();
+var (dim2, header, blobs) = reader.ReadCheckpoint(checkpoint);
+warSystem.PostLoad(blobs["war"]);
 ```
+
+## Propagation
+
+`Propagator.Step` is double-buffered: all deltas are accumulated first, then applied in sorted order. This prevents order-dependent mutation during iteration.
+
+```
+transmittedDelta = sourceLogAmp × exp(-resistance × EdgeResistanceScale) × PropagationRate × dt
+```
+
+Filter edges by tag: `Propagator.Step(dim, field, dt, requiredEdgeTag: "space")`.
+
+Transport constraints (logistics) are modelled entirely through edge resistance and tag filters — there is no separate `LogisticsEngine`.
+
+## Serialization
+
+Odengine has a **custom binary snapshot system** (`ODSN` magic, little-endian) supporting three snapshot types:
+
+| Type | Purpose |
+|---|---|
+| `Full` | Complete field state, self-contained, no system blobs. Use for per-tick recording. |
+| `Delta` | Sparse diff against a parent Full. Only changed entries written; sentinel `logAmp = 0` marks removed entries. |
+| `Checkpoint` | Full + system blobs for all `ISnapshotParticipant` systems. Required for load-and-resume. |
+
+**String pool** — all `fieldId`, `nodeId`, `channelId`, tag, and system-ID strings are interned into an Ordinal-sorted pool written once per snapshot. This makes output byte-identical for identical state.
+
+**`ISnapshotParticipant`** — systems with non-field state (e.g., `WarSystem`) implement this interface to emit/consume opaque versioned byte blobs at Checkpoint save/load time.
+
+**`DeltaIndex`** — records which (fieldId, nodeId, channelId) entries changed at each tick, so postmortem tools can seek to any tick without replaying from the start.
 
 ## Key Guarantees
 
-1. **Determinism**: Same seed + same operations = identical results
-2. **Coherence**: Within a tick, measuring the same thing twice returns the same value
-3. **No hidden nondeterminism**: All iteration is sorted (StringComparer.Ordinal)
-4. **Measurement is lazy**: Derived fields computed only when observed
-5. **Shimmer**: Optional controlled noise for "quantum-like" variation (deterministic)
+1. **Determinism** — all iteration is Ordinal-sorted; same state always produces identical bytes.
+2. **Sparsity** — entries within `LogEpsilon` of neutral are never written; absent entries read as neutral.
+3. **Schema evolution** — versioned blobs; new fields/systems do not break loading of older snapshots.
+4. **No semantic IDs in core** — `fieldId`, `nodeId`, `channelId` are opaque strings the engine never interprets.
 
-## Design Decisions
+## Tests
 
-### Why Fields?
+Run via _Window → General → Test Runner → EditMode_ in the Unity editor.
 
-Traditional entity-component systems store discrete values ("this market has 50 water at 12cr each"). Field-based systems store **continuous distributions** ("availability density is 100 at this location"). This enables:
-- Natural propagation/diffusion
-- Lazy evaluation (compute only what's observed)
-- Observer-dependent measurements (intel, fog-of-war)
-- Emergent behavior from field interactions
-
-### Why Observables?
-
-Price/threat/perceived-stock are **projections**, not ground truth. Storing them creates synchronization nightmares. Computing them on-demand from stable fields is:
-- Deterministic
-- Cacheable per-tick
-- Naturally consistent
-
-### Why Measurement Cache?
-
-Quantum mechanics: repeated measurement without system change yields same result. Games: opening a shop twice in one frame should show same prices. Cache ensures this without complex "last measurement time" tracking.
-
-### Why Minimal Components?
-
-Components should be **generic field modifiers**, not game-specific data ("ShipHullComponent" is wrong, "EmitterComponent" is right). This keeps the core universal and reusable.
+```
+Tests/Core/Graph/          NodeGraph correctness
+Tests/Core/Fields/         ScalarField log-space math
+Tests/Core/Propagation/    Propagator double-buffer + determinism
+Tests/Modules/Economy/     EconomySystem API
+Tests/Determinism/         StateHash byte-identical across runs
+Tests/Fuzz/                DeterministicRng randomised stress
+Tests/Scenarios/           Multi-tick long-horizon invariant checks
+Tests/Snapshots/           Binary round-trip (Full, Delta, Checkpoint, DeltaIndex)
+```
 
 ## Status
 
-**Phase**: Core POC  
-**Complete**:
-- Node graph topology
-- Scalar field storage
-- Measurement + caching + coherence
-- Observables (derived fields)
-- Deterministic noise (shimmer)
-- Emission/Sink components
-- Basic diffusion engine
+**Branch**: `feature/serialization`
 
-**TODO**:
-- Coupling components (field-to-field influence)
-- Policy engine (modifiers, rules-as-data)
-- Movement/pathing (OdEdgeGraph)
-- War engine (field evolution + threshold events)
-- Materializers (field → discrete units)
-- Snapshot system (world serialization)
+**Complete:**
+- `NodeGraph` + `ScalarField` + `Propagator` — core field layer
+- `EconomySystem`, `WarSystem`, `FactionSystem` — domain systems
+- Binary snapshot system — Full, Delta, Checkpoint, DeltaIndex
+- `ISnapshotParticipant` — extensible system-blob contract
+- Full test suite: core, domain, integration, determinism, fuzz, scenarios, snapshots
 
-## Testing
-
-Run tests in Unity Test Runner or via command line:
-```bash
-Unity -runTests -testPlatform PlayMode
-```
-
-All tests enforce:
-- Determinism (same seed = same result)
-- Coherence (cache consistency)
-- Correctness (engine logic)
+**Planned:**
+- `CouplingRule` — declarative cross-field coupling (after test suite is solid)
+- Combat system
+- Postmortem replay tooling (game layer concern)
 
 ## License
 

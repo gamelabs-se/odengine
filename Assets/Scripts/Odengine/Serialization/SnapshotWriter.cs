@@ -105,8 +105,10 @@ namespace Odengine.Serialization
                             $"Duplicate SystemId '{p.SystemId}' in participants list.");
             }
 
-            // Build Ordinal-sorted string pool for determinism
-            string[] pool = BuildPool(dimension, participants);
+            // Build Ordinal-sorted string pool for determinism.
+            // previousEntries must be included so that removed-entry strings (node/channel IDs
+            // that no longer appear in any active field) are still in the pool for delta writes.
+            string[] pool = BuildPool(dimension, participants, previousEntries);
             var poolIdx = new Dictionary<string, uint>(pool.Length, StringComparer.Ordinal);
             for (uint i = 0; i < pool.Length; i++) poolIdx[pool[i]] = i;
 
@@ -252,7 +254,8 @@ namespace Odengine.Serialization
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static string[] BuildPool(Dimension dimension,
-            IReadOnlyList<ISnapshotParticipant> participants)
+            IReadOnlyList<ISnapshotParticipant> participants,
+            Dictionary<(string fieldId, string nodeId, string channelId), float> previousEntries = null)
         {
             var set = new HashSet<string>(StringComparer.Ordinal) { "" }; // index-0 sentinel
 
@@ -282,6 +285,17 @@ namespace Odengine.Serialization
 
             if (participants != null)
                 foreach (var p in participants) set.Add(p.SystemId);
+
+            // Include strings from the previous snapshot so that sentinel-zero entries
+            // for removed nodes/channels can be encoded even when those strings no longer
+            // appear in any currently active field entry.
+            if (previousEntries != null)
+                foreach (var (fk, _) in previousEntries)
+                {
+                    set.Add(fk.fieldId);
+                    set.Add(fk.nodeId);
+                    set.Add(fk.channelId);
+                }
 
             var sorted = set.ToArray();
             Array.Sort(sorted, StringComparer.Ordinal);

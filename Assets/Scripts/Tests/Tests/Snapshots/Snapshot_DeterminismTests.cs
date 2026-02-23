@@ -42,9 +42,9 @@ namespace Odengine.Tests.Snapshots
         private static FieldProfile P(string id = "p") => new FieldProfile(id)
         {
             PropagationRate = 0.1f,
-            MinLogAmpClamp  = -10f,
-            MaxLogAmpClamp  =  10f,
-            LogEpsilon      = 0.0001f
+            MinLogAmpClamp = -10f,
+            MaxLogAmpClamp = 10f,
+            LogEpsilon = 0.0001f
         };
 
         /// <summary>
@@ -54,9 +54,9 @@ namespace Odengine.Tests.Snapshots
         private static Dimension BuildDeterministic(uint seed, int nodeCount = 5,
             int edgeCount = 6, int fieldCount = 2, int entryCount = 10)
         {
-            var rng     = seed;
+            var rng = seed;
             var nodeIds = new string[nodeCount];
-            var dim     = new Dimension();
+            var dim = new Dimension();
 
             for (int i = 0; i < nodeCount; i++)
             {
@@ -67,7 +67,7 @@ namespace Odengine.Tests.Snapshots
             for (int i = 0; i < edgeCount; i++)
             {
                 int from = (int)(Xorshift(ref rng) % (uint)nodeCount);
-                int to   = (int)(Xorshift(ref rng) % (uint)nodeCount);
+                int to = (int)(Xorshift(ref rng) % (uint)nodeCount);
                 if (from == to) to = (to + 1) % nodeCount;
                 float res = 0.1f + NextFloat01(ref rng) * 2f;
                 dim.AddEdge(nodeIds[from], nodeIds[to], res);
@@ -80,9 +80,9 @@ namespace Odengine.Tests.Snapshots
                 var field = dim.AddField($"field_{fi}", P($"p{fi}"));
                 for (int e = 0; e < entryCount; e++)
                 {
-                    int   nIdx = (int)(Xorshift(ref rng) % (uint)nodeCount);
-                    int   cIdx = (int)(Xorshift(ref rng) % (uint)channels.Length);
-                    float amp  = (NextFloat01(ref rng) - 0.5f) * 8f;
+                    int nIdx = (int)(Xorshift(ref rng) % (uint)nodeCount);
+                    int cIdx = (int)(Xorshift(ref rng) % (uint)channels.Length);
+                    float amp = (NextFloat01(ref rng) - 0.5f) * 8f;
                     if (MathF.Abs(amp) > 0.01f)
                         field.SetLogAmp(nodeIds[nIdx], channels[cIdx], amp);
                 }
@@ -207,7 +207,7 @@ namespace Odengine.Tests.Snapshots
 
             // Apply same mutation
             dim.GetField("field_0").SetLogAmp("node_001", "alpha", 5.0f);
-            dim.GetField("field_1").SetLogAmp("node_002", "beta",  3.0f);
+            dim.GetField("field_1").SetLogAmp("node_002", "beta", 3.0f);
 
             var d1 = StripTimestamp(w.WriteDelta(dim, full, 1, 1.0, 0, 1));
             var d2 = StripTimestamp(w.WriteDelta(dim, full, 1, 1.0, 0, 1));
@@ -219,17 +219,24 @@ namespace Odengine.Tests.Snapshots
         [Test]
         public void Delta_EntryOrder_InStringPool_Deterministic()
         {
-            // Two dimensions with same end-state but entries written in different order
+            // Both dimensions start from an IDENTICAL empty-field Full (same previous state).
+            // Then the same two entries are added in different order.
+            // The resulting deltas must be byte-identical because the string pool and
+            // entry list are both Ordinal-sorted regardless of insertion order.
             var dim1 = new Dimension();
             dim1.AddNode("aaa"); dim1.AddNode("zzz");
-            dim1.AddField("f", P()).SetLogAmp("aaa", "alpha", 1f);
+            dim1.AddField("f", P()); // empty field — no active entries
             var full1 = new SnapshotWriter().WriteFull(dim1, 0, 0);
-            dim1.GetField("f").SetLogAmp("zzz", "beta", 2f);  // added second
+            // Now add both entries (aaa first, then zzz)
+            dim1.GetField("f").SetLogAmp("aaa", "alpha", 1f);
+            dim1.GetField("f").SetLogAmp("zzz", "beta",  2f);
 
             var dim2 = new Dimension();
             dim2.AddNode("aaa"); dim2.AddNode("zzz");
-            dim2.AddField("f", P()).SetLogAmp("zzz", "beta", 2f); // added first this time
+            dim2.AddField("f", P()); // empty field — same previous state
             var full2 = new SnapshotWriter().WriteFull(dim2, 0, 0);
+            // Add in opposite order (zzz first, then aaa)
+            dim2.GetField("f").SetLogAmp("zzz", "beta",  2f);
             dim2.GetField("f").SetLogAmp("aaa", "alpha", 1f);
 
             var d1 = StripTimestamp(new SnapshotWriter().WriteDelta(dim1, full1, 1, 1.0, 0, 1));
@@ -301,13 +308,13 @@ namespace Odengine.Tests.Snapshots
         {
             var dim = BuildDeterministic(seed, nodeCount: 8, edgeCount: 12, fieldCount: 3, entryCount: 15);
 
-            var bytes   = new SnapshotWriter().WriteFull(dim, seed, seed * 0.1);
+            var bytes = new SnapshotWriter().WriteFull(dim, seed, seed * 0.1);
             var restored = new SnapshotReader().Read(bytes).ReconstructDimension();
 
             foreach (var (_, field) in restored.Fields)
                 foreach (var (_, _, logAmp) in field.EnumerateAllActiveSorted())
                 {
-                    Assert.IsFalse(float.IsNaN(logAmp),      $"NaN in field '{field.FieldId}' (seed={seed})");
+                    Assert.IsFalse(float.IsNaN(logAmp), $"NaN in field '{field.FieldId}' (seed={seed})");
                     Assert.IsFalse(float.IsInfinity(logAmp), $"Infinity in field '{field.FieldId}' (seed={seed})");
                 }
         }
@@ -320,10 +327,10 @@ namespace Odengine.Tests.Snapshots
             var r = new SnapshotReader();
             var rng = seed;
 
-            var nodeIds  = dim.Graph.GetNodeIdsSorted();
+            var nodeIds = dim.Graph.GetNodeIdsSorted();
             string[] chs = { "alpha", "beta", "gamma" };
-            byte[] prev  = w.WriteFull(dim, 0, 0);
-            var series   = new List<byte[]> { prev };
+            byte[] prev = w.WriteFull(dim, 0, 0);
+            var series = new List<byte[]> { prev };
 
             for (ulong tick = 1; tick <= 10; tick++)
             {
@@ -346,7 +353,7 @@ namespace Odengine.Tests.Snapshots
                 foreach (var (_, field) in at.Fields)
                     foreach (var (_, _, logAmp) in field.EnumerateAllActiveSorted())
                     {
-                        Assert.IsFalse(float.IsNaN(logAmp),      $"NaN at tick {tick} (seed={seed})");
+                        Assert.IsFalse(float.IsNaN(logAmp), $"NaN at tick {tick} (seed={seed})");
                         Assert.IsFalse(float.IsInfinity(logAmp), $"Infinity at tick {tick} (seed={seed})");
                     }
             }
@@ -359,7 +366,7 @@ namespace Odengine.Tests.Snapshots
             byte[] RunOnce(uint s)
             {
                 var dim = BuildDeterministic(s, nodeCount: 4, edgeCount: 4, fieldCount: 2, entryCount: 6);
-                var w   = new SnapshotWriter();
+                var w = new SnapshotWriter();
                 var rng = s;
                 var nodeIds = dim.Graph.GetNodeIdsSorted();
                 string[] chs = { "alpha", "beta", "gamma" };
@@ -418,15 +425,15 @@ namespace Odengine.Tests.Snapshots
             var dim = new Dimension();
             dim.AddNode("earth"); dim.AddNode("mars"); dim.AddNode("belt");
             dim.AddEdge("earth", "mars", 0.5f, "space");
-            dim.AddEdge("mars",  "belt", 0.3f, "space");
+            dim.AddEdge("mars", "belt", 0.3f, "space");
 
             var warProfile = new FieldProfile("war")
             {
                 PropagationRate = 0.05f,
-                DecayRate       = 0.01f,
-                MinLogAmpClamp  = -8f,
-                MaxLogAmpClamp  =  8f,
-                LogEpsilon      = 0.0001f
+                DecayRate = 0.01f,
+                MinLogAmpClamp = -8f,
+                MaxLogAmpClamp = 8f,
+                LogEpsilon = 0.0001f
             };
             var war = new WarSystem(dim, warProfile);
             war.DeclareWar("earth");
@@ -475,14 +482,14 @@ namespace Odengine.Tests.Snapshots
             var warProfile = new FieldProfile("war")
             {
                 PropagationRate = 0.0f, // no propagation — pure decay test
-                DecayRate       = 0.0f,
-                MinLogAmpClamp  = -5f,
-                MaxLogAmpClamp  =  5f
+                DecayRate = 0.0f,
+                MinLogAmpClamp = -5f,
+                MaxLogAmpClamp = 5f
             };
             var war = new WarSystem(dim, warProfile, new WarConfig
             {
-                AmbientDecayRate  = 0.1f,
-                ExposureEpsilon   = 0.0001f,
+                AmbientDecayRate = 0.1f,
+                ExposureEpsilon = 0.0001f,
                 ExposureGrowthRate = 0f
             });
 
@@ -493,9 +500,9 @@ namespace Odengine.Tests.Snapshots
             {
                 war.Tick(0.5f);
                 float amp = war.GetExposureLogAmp("earth");
-                Assert.IsFalse(float.IsNaN(amp),      $"NaN at tick {i}");
+                Assert.IsFalse(float.IsNaN(amp), $"NaN at tick {i}");
                 Assert.IsFalse(float.IsInfinity(amp), $"Inf at tick {i}");
-                Assert.GreaterOrEqual(amp, 0f,         $"Exposure went negative at tick {i}");
+                Assert.GreaterOrEqual(amp, 0f, $"Exposure went negative at tick {i}");
             }
 
             // Should have decayed to near-zero (< epsilon)
@@ -510,11 +517,11 @@ namespace Odengine.Tests.Snapshots
         {
             // Write → Read → Reconstruct → Write again → must produce same bytes (excl. timestamp)
             var dim = BuildDeterministic(314159);
-            var w   = new SnapshotWriter();
+            var w = new SnapshotWriter();
 
-            var bytes1   = w.WriteFull(dim, 42, 1.0);
+            var bytes1 = w.WriteFull(dim, 42, 1.0);
             var restored = new SnapshotReader().Read(bytes1).ReconstructDimension();
-            var bytes2   = w.WriteFull(restored, 42, 1.0);
+            var bytes2 = w.WriteFull(restored, 42, 1.0);
 
             CollectionAssert.AreEqual(StripTimestamp(bytes1), StripTimestamp(bytes2),
                 "A restored Dimension re-serialized at the same tick must produce identical bytes");

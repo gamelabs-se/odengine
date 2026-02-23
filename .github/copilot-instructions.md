@@ -84,6 +84,28 @@ Filter edges by tag: `Propagator.Step(dim, field, dt, requiredEdgeTag: "sea")`.
 
 **Logistics is not a separate engine.** Transport constraints are modelled entirely through edge resistance, `FieldProfile.EdgeResistanceScale`, and edge tag filters. A sea-only route is a set of edges tagged `"sea"`. A trade lane is a low-resistance edge. No inventory movement, no `LogisticsEngine`.
 
+## Serialization
+
+Odengine has a **custom binary snapshot system** (magic `ODSN`, little-endian). The `Docs/serialization-design.md` describes an earlier FlatBuffers plan — the actual implementation is the custom binary format in `Assets/Scripts/Odengine/Serialization/`.
+
+**Three snapshot types (`SnapshotType` enum):**
+
+| Type | Purpose |
+| --- | --- |
+| `Full` | Complete field state, self-contained, no system blobs. Use for per-tick recording. |
+| `Delta` | Sparse diff against a parent Full. Sentinel `logAmp = 0.0f` marks removed entries. |
+| `Checkpoint` | Full + system blobs for every `ISnapshotParticipant`. Required for load-and-resume. |
+
+**String pool** — all `fieldId`, `nodeId`, `channelId`, tag, and system-ID strings are interned into one Ordinal-sorted pool, written once per snapshot. This makes output byte-identical for identical state.
+
+**`ISnapshotParticipant`** — implement when a domain system holds non-field state (private collections, caches) that cannot be re-derived from `ScalarField` data alone. `WarSystem` is the canonical example. `FactionSystem._lastDominant` is reconstructable via `PostLoad()` without a blob — do not over-apply the interface.
+
+**`DeltaIndex`** — records which `(fieldId, nodeId, channelId)` entries changed at each tick tick, enabling postmortem tools to seek without full replay.
+
+**Critical `BuildPool` rule** — `SnapshotWriter.BuildPool` must include strings from **both** the current active entries *and* the `previousEntries` dictionary. Removed entries' node/channel IDs disappear from the active map but are still referenced when writing sentinel-zero delta entries. Missing pool entries cause `KeyNotFoundException` at write time.
+
+**`EconomySystem.Availability` logAmp is negative after `InjectTrade`** — `InjectTrade` calls `Availability.AddLogAmp(node, item, -availK * units)`. The negative sign is intentional: supply is consumed, pushing availability below neutral. Assert `Less(logAmp, 0f)`, not `Greater`.
+
 ## Cross-Field Coupling (Planned)
 
 A small declarative `CouplingRule` system belongs in Odengine (not the game layer) so coupling stays deterministic and testable. A rule reads one field's sampled value at a node and emits an impulse into another field — using only generic math operators (linear, clamp, ratio, threshold). **No semantic IDs are hardcoded in coupling rules; field IDs and channel selectors are provided by the game.**
@@ -94,7 +116,7 @@ Do not implement `CouplingRule` until the core field layer + test suite is solid
 
 ## Adding a New Domain System
 
-Engines to port from luna-odyssea (in priority order): **War**, **Faction**, Combat. (Logistics is replaced by propagation + resistance — no separate system needed.)
+Engines ported from luna-odyssea: **EconomySystem** ✅, **WarSystem** ✅, **FactionSystem** ✅. Remaining: **Combat**. (Logistics is replaced by propagation + resistance + edge tags — no separate system needed.)
 
 Pattern for each:
 
@@ -118,7 +140,10 @@ Tests/Modules/Economy/     Economy_EconomyTests.cs
 Tests/Determinism/         hash + replay tests
 Tests/Fuzz/                randomised stress tests (use DeterministicRng)
 Tests/Scenarios/           multi-tick long-horizon runs
-Tests/Snapshots/           binary round-trip tests
+Tests/Snapshots/           Snapshot_CoreTests.cs         — Full/Delta/Checkpoint, string pool, DeltaIndex
+                           Snapshot_SystemTests.cs       — WarSystem blob, FactionSystem PostLoad
+                           Snapshot_IntegrationTests.cs  — multi-system checkpoint + resume
+                           Snapshot_DeterminismTests.cs  — byte-identical output, fuzz, 500-tick
 ```
 
 **Four test tiers (all required when porting behaviour):**
@@ -138,18 +163,31 @@ Tests/Snapshots/           binary round-trip tests
 
 ## Key File Map
 
-| File                                                  | Role                                                  |
-| ----------------------------------------------------- | ----------------------------------------------------- |
-| `Assets/Scripts/Odengine/Core/Dimension.cs`           | Top-level container                                   |
-| `Assets/Scripts/Odengine/Fields/ScalarField.cs`       | Log-space field storage                               |
-| `Assets/Scripts/Odengine/Fields/FieldProfile.cs`      | Per-field behaviour config (plain data class)         |
-| `Assets/Scripts/Odengine/Fields/Propagator.cs`        | Deterministic double-buffered propagation             |
-| `Assets/Scripts/Odengine/Fields/ChannelView.cs`       | Single-channel facade                                 |
-| `Assets/Scripts/Odengine/Graph/NodeGraph.cs`          | Sorted graph topology                                 |
-| `Assets/Scripts/Odengine/Economy/EconomySystem.cs`    | Reference domain system                               |
-| `Assets/Scripts/Tests/Tests/FieldPropagationTests.cs` | Propagation + determinism patterns                    |
-| `Assets/Scripts/Tests/Tests/EconomyTests.cs`          | Domain + scenario test patterns                       |
-| `Docs/Appendices/`                                    | Detailed design decisions — read before major changes |
+| File                                                                        | Role                                                  |
+| --------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `Assets/Scripts/Odengine/Core/Dimension.cs`                                 | Top-level container                                   |
+| `Assets/Scripts/Odengine/Fields/ScalarField.cs`                             | Log-space field storage                               |
+| `Assets/Scripts/Odengine/Fields/FieldProfile.cs`                            | Per-field behaviour config (plain data class)         |
+| `Assets/Scripts/Odengine/Fields/Propagator.cs`                              | Deterministic double-buffered propagation             |
+| `Assets/Scripts/Odengine/Fields/ChannelView.cs`                             | Single-channel facade                                 |
+| `Assets/Scripts/Odengine/Graph/NodeGraph.cs`                                | Sorted graph topology                                 |
+| `Assets/Scripts/Odengine/Economy/EconomySystem.cs`                          | Reference domain system                               |
+| `Assets/Scripts/Odengine/War/WarSystem.cs`                                  | War domain system + `ISnapshotParticipant`            |
+| `Assets/Scripts/Odengine/Faction/FactionSystem.cs`                          | Faction domain system                                 |
+| `Assets/Scripts/Odengine/Serialization/SnapshotWriter.cs`                   | Binary snapshot writer (`ODSN` format)                |
+| `Assets/Scripts/Odengine/Serialization/SnapshotReader.cs`                   | Binary snapshot reader                                |
+| `Assets/Scripts/Odengine/Serialization/ISnapshotParticipant.cs`             | System blob contract                                  |
+| `Assets/Scripts/Odengine/Serialization/DeltaIndex.cs`                       | Per-tick change index for postmortem seeks            |
+| `Assets/Scripts/Odengine/Serialization/SnapshotHeader.cs`                   | Snapshot metadata (tick, type, schema version)        |
+| `Assets/Scripts/Odengine/Serialization/SnapshotConfig.cs`                   | Writer/reader configuration                           |
+| `Assets/Scripts/Tests/Tests/FieldPropagationTests.cs`                       | Propagation + determinism patterns                    |
+| `Assets/Scripts/Tests/Tests/EconomyTests.cs`                                | Domain + scenario test patterns                       |
+| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_CoreTests.cs`                | Full/Delta/Checkpoint binary round-trip               |
+| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_SystemTests.cs`              | WarSystem blob + FactionSystem PostLoad               |
+| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_IntegrationTests.cs`         | Multi-system checkpoint + resume workflows            |
+| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_DeterminismTests.cs`         | Byte-identical output + fuzz + 500-tick scenario      |
+| `Docs/Appendices/`                                                           | Detailed design decisions — read before major changes |
+| `Docs/serialization-design.md`                                               | Serialization design (describes FlatBuffers plan; actual impl is custom binary) |
 
 ## What NOT to Migrate from luna-odyssea
 
