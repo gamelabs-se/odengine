@@ -1,280 +1,233 @@
 using System;
 using System.Collections.Generic;
+using Odengine.Core;
+using Odengine.Fields;
 
 namespace Odengine.Faction
 {
     /// <summary>
-    /// FactionSystem — derives political health for factions from node-level inputs.
+    /// FactionSystem — models territorial control and political presence as scalar fields.
     ///
-    /// No Dimension, no ScalarField, no Intent plumbing.
-    /// Faction aggregates are computed (not propagated), so plain dictionaries suffice.
+    /// Three fields, all indexed (nodeId, factionId → logAmp):
     ///
-    /// Game-layer bridge pattern each tick:
-    ///   foreach node:
-    ///     factions.SetNodeStability(nodeId, yourStabilityValue);
-    ///     factions.SetNodeWarExposure(nodeId, war.GetExposureLogAmp(nodeId));
+    ///   faction.presence  — military / police / administrative footprint.
+    ///                       The faction with the highest positive logAmp at a node
+    ///                       is considered the dominant (territorial controller).
+    ///                       logAmp = 0 → neutral baseline (no footprint).
+    ///
+    ///   faction.influence — cultural / economic / soft-power reach.
+    ///                       Can extend beyond hard presence — trade networks,
+    ///                       propaganda, diplomatic ties.
+    ///
+    ///   faction.stability — governance quality at a node under a given faction.
+    ///                       Driven by impulses from the game layer; can be coupled
+    ///                       from war.exposure via CouplingEvaluator.
+    ///
+    /// All three propagate via Propagator.Step each Tick().
+    /// Their FieldProfiles control propagation rate, edge resistance, and decay.
+    ///
+    /// Territorial control is derived on observation — never stored:
+    ///   GetDominantFaction(nodeId) → argmax over presence channels
+    ///   IsContested(nodeId)        → top two factions within gapThreshold of each other
+    ///   GetTotalPresenceLogAmp(nodeId) → power-vacuum detector (low = ungoverned)
+    ///
+    /// OnDominanceChanged fires when the argmax result flips for any node.
+    ///
+    /// Game-layer pattern:
+    ///   // Bootstrap: inject initial presence
+    ///   factions.AddPresence("earth", "empire_red", 2.0f);
+    ///
+    ///   // Each tick: couple external pressures in, then propagate
+    ///   factions.AddPresence("frontline", "empire_red", -warImpulse);   // war erodes presence
     ///   factions.Tick(dt);
     ///
-    /// Tick() order:
-    ///   1. RecomputeAggregates  — mean stability + war exposure per faction
-    ///   2. UpdatePoliticalHealth — smooth PoliticalStability, accumulate WarExhaustion
-    ///   3. Fire threshold callbacks
+    ///   // Read dominance
+    ///   string controller = factions.GetDominantFaction("earth");
     /// </summary>
     public sealed class FactionSystem
     {
-        // ── Political health constants ─────────────────────────────────────────
-        private const float StabilitySmoothingRate  = 0.05f;  // exp-smoothing rate per tick
-        private const float WarExhaustionGainRate   = 0.01f;  // exhaustion gain per unit of average war exposure per tick
-        private const float WarExhaustionDecayRate  = 0.005f; // exhaustion decay per tick when at peace
+        // ── Fields ─────────────────────────────────────────────────────────────
+        private readonly Dimension _dimension;
 
-        /// <summary>War exposure logAmp above which WarExhaustion grows.</summary>
-        private const float WarExposureThreshold = 0.1f;
+        /// <summary>Military / administrative footprint. Controls territorial dominance.</summary>
+        public readonly ScalarField Presence;
 
-        // ── Publicly readable threshold constants ─────────────────────────────
-        public const float StabilityCrisisThreshold  = 0.3f;
-        public const float StabilityStableThreshold  = 0.7f;
+        /// <summary>Cultural / economic soft-power reach.</summary>
+        public readonly ScalarField Influence;
 
-        // ── Internal state ─────────────────────────────────────────────────────
-        private readonly Dictionary<string, FactionState> _factions
-            = new Dictionary<string, FactionState>(StringComparer.Ordinal);
+        /// <summary>Governance quality at a node under a faction's control.</summary>
+        public readonly ScalarField Stability;
 
-        // nodeId → factionId
-        private readonly Dictionary<string, string> _controllers
+        // ── Dominance tracking ──────────────────────────────────────────────────
+        // Last-known dominant faction per node — used only to detect changes for callbacks.
+        // Not a source of truth; dominance is always re-derived from Presence.
+        private readonly Dictionary<string, string> _lastDominant
             = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        // nodeId → stability [0..1] — default 1.0 (fully stable) when not set
-        private readonly Dictionary<string, float> _nodeStability
-            = new Dictionary<string, float>(StringComparer.Ordinal);
-
-        // nodeId → war exposure logAmp — default 0 (peace) when not set
-        private readonly Dictionary<string, float> _nodeWarExposure
-            = new Dictionary<string, float>(StringComparer.Ordinal);
-
-        // ── Callbacks ──────────────────────────────────────────────────────────
+        // ── Callbacks ───────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Fired when a node's controller changes: (nodeId, newFactionId).
-        /// Also fired by TransferControl(); NOT fired by SetNodeController().
+        /// Fired at the end of Tick() when the dominant faction at a node changes.
+        /// Parameters: (nodeId, previousDominant, newDominant).
+        /// previousDominant is null when a node first gains a dominant faction.
+        /// newDominant is null when all presence decays and the node becomes ungoverned.
         /// </summary>
-        public Action<string, string> OnControlTransferred;
+        public Action<string, string, string> OnDominanceChanged;
+
+        // ── Construction ────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Fired when a faction's PoliticalStability crosses below StabilityCrisisThreshold.
+        /// Create a FactionSystem, registering three fields in the shared Dimension.
+        ///
+        /// Recommended FieldProfile settings:
+        ///   presence  — moderate PropagationRate (military spread is slow), high EdgeResistanceScale
+        ///   influence — higher PropagationRate (soft power spreads faster along trade edges)
+        ///   stability — low PropagationRate; driven mainly by coupling rules, not raw propagation
         /// </summary>
-        public Action<string> OnFactionCollapse;
-
-        /// <summary>
-        /// Fired when a faction's PoliticalStability crosses above StabilityStableThreshold.
-        /// </summary>
-        public Action<string> OnFactionStabilize;
-
-        // ── Faction registration ───────────────────────────────────────────────
-
-        /// <summary>
-        /// Register a faction. Idempotent — safe to call multiple times.
-        /// </summary>
-        public void RegisterFaction(string factionId)
+        public FactionSystem(Dimension dimension,
+            FieldProfile presenceProfile,
+            FieldProfile influenceProfile,
+            FieldProfile stabilityProfile)
         {
-            if (string.IsNullOrEmpty(factionId))
-                throw new ArgumentException("FactionId cannot be null or empty", nameof(factionId));
-
-            if (!_factions.ContainsKey(factionId))
-                _factions[factionId] = new FactionState(factionId);
+            _dimension = dimension ?? throw new ArgumentNullException(nameof(dimension));
+            Presence  = dimension.AddField("faction.presence",  presenceProfile  ?? throw new ArgumentNullException(nameof(presenceProfile)));
+            Influence = dimension.AddField("faction.influence", influenceProfile ?? throw new ArgumentNullException(nameof(influenceProfile)));
+            Stability = dimension.AddField("faction.stability", stabilityProfile ?? throw new ArgumentNullException(nameof(stabilityProfile)));
         }
 
-        /// <summary>Returns true if the faction has been registered.</summary>
-        public bool HasFaction(string factionId) =>
-            !string.IsNullOrEmpty(factionId) && _factions.ContainsKey(factionId);
-
-        /// <summary>Returns the FactionState for a registered faction, or null if unknown.</summary>
-        public FactionState GetFaction(string factionId) =>
-            _factions.TryGetValue(factionId ?? "", out var s) ? s : null;
-
-        /// <summary>All registered faction IDs in deterministic Ordinal-sorted order.</summary>
-        public IReadOnlyList<string> GetFactionIdsSorted()
-        {
-            var list = new List<string>(_factions.Keys);
-            list.Sort(StringComparer.Ordinal);
-            return list;
-        }
-
-        // ── Node control API ───────────────────────────────────────────────────
+        // ── Impulse API ─────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Silently assign a faction as controller of a node (world-setup use).
-        /// Does NOT fire OnControlTransferred. Auto-registers the faction.
+        /// Inject a logAmp delta into the presence field at a node for a faction.
+        /// Positive delta grows presence; negative delta erodes it (war damage, retreat).
         /// </summary>
-        public void SetNodeController(string nodeId, string factionId)
-        {
-            ValidateId(nodeId,    nameof(nodeId));
-            ValidateId(factionId, nameof(factionId));
-            RegisterFaction(factionId);
-            _controllers[nodeId] = factionId;
-        }
-
-        /// <summary>Returns the faction currently controlling this node, or null if uncontrolled.</summary>
-        public string GetNodeController(string nodeId) =>
-            _controllers.TryGetValue(nodeId ?? "", out var f) ? f : null;
+        public void AddPresence(string nodeId, string factionId, float deltaLogAmp)
+            => Presence.AddLogAmp(nodeId, factionId, deltaLogAmp);
 
         /// <summary>
-        /// Transfer control of a node to a new faction. Fires OnControlTransferred.
-        /// Auto-registers the target faction.
+        /// Inject a logAmp delta into the influence field at a node for a faction.
         /// </summary>
-        public void TransferControl(string nodeId, string toFactionId)
-        {
-            ValidateId(nodeId,      nameof(nodeId));
-            ValidateId(toFactionId, nameof(toFactionId));
-            RegisterFaction(toFactionId);
-            _controllers[nodeId] = toFactionId;
-            OnControlTransferred?.Invoke(nodeId, toFactionId);
-        }
-
-        /// <summary>Remove control assignment from a node (makes it uncontrolled).</summary>
-        public void ClearNodeController(string nodeId) => _controllers.Remove(nodeId ?? "");
-
-        // ── Node input setters ─────────────────────────────────────────────────
+        public void AddInfluence(string nodeId, string factionId, float deltaLogAmp)
+            => Influence.AddLogAmp(nodeId, factionId, deltaLogAmp);
 
         /// <summary>
-        /// Set the current node stability [0..1] for aggregation.
-        /// Default when unset: 1.0 (fully stable — neutral baseline).
+        /// Inject a logAmp delta into the stability field at a node for a faction.
         /// </summary>
-        public void SetNodeStability(string nodeId, float stability)
+        public void AddStability(string nodeId, string factionId, float deltaLogAmp)
+            => Stability.AddLogAmp(nodeId, factionId, deltaLogAmp);
+
+        // ── Observation API ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns the factionId with the highest positive presence logAmp at nodeId,
+        /// or null if no faction has any positive presence there (ungoverned / power vacuum).
+        /// Derived on observation — never stored.
+        /// </summary>
+        public string GetDominantFaction(string nodeId) => Presence.GetDominantChannel(nodeId);
+
+        /// <summary>
+        /// True when two or more factions have positive presence at the node and the gap
+        /// between the top two is less than <paramref name="gapThreshold"/> logAmp.
+        /// Default threshold of 0.3 means the leading faction has less than ~35% more
+        /// presence multiplier than the second — genuinely contested.
+        /// </summary>
+        public bool IsContested(string nodeId, float gapThreshold = 0.3f)
         {
-            ValidateId(nodeId, nameof(nodeId));
-            _nodeStability[nodeId] = Math.Clamp(stability, 0f, 1f);
+            var channels = Presence.GetActiveChannelIdsSortedForNode(nodeId);
+            float best = float.NegativeInfinity;
+            float second = float.NegativeInfinity;
+
+            foreach (var ch in channels)
+            {
+                float v = Presence.GetLogAmp(nodeId, ch);
+                if (v > best)   { second = best; best = v; }
+                else if (v > second) second = v;
+            }
+
+            // Both top two must be positive (above neutral baseline) and close together
+            return best > 0f && second > 0f && (best - second) < gapThreshold;
         }
 
         /// <summary>
-        /// Set the current war exposure logAmp at a node for aggregation.
-        /// Typically: war.GetExposureLogAmp(nodeId).
-        /// Default when unset: 0 (no war — neutral baseline).
+        /// Sum of all faction presence logAmps at a node.
+        /// Low value ≈ power vacuum (ungoverned space). High value = well-administered.
         /// </summary>
-        public void SetNodeWarExposure(string nodeId, float warExposureLogAmp)
+        public float GetTotalPresenceLogAmp(string nodeId)
         {
-            ValidateId(nodeId, nameof(nodeId));
-            _nodeWarExposure[nodeId] = warExposureLogAmp;
+            float total = 0f;
+            foreach (var ch in Presence.GetActiveChannelIdsSortedForNode(nodeId))
+                total += Presence.GetLogAmp(nodeId, ch);
+            return total;
         }
 
-        // ── Tick ──────────────────────────────────────────────────────────────
+        /// <summary>Presence multiplier (exp(logAmp)) for a faction at a node. 1.0 = neutral baseline.</summary>
+        public float GetPresenceMultiplier(string nodeId, string factionId)
+            => Presence.GetMultiplier(nodeId, factionId);
 
-        /// <summary>Advance faction simulation by <paramref name="dt"/> ticks.</summary>
+        /// <summary>Influence multiplier (exp(logAmp)) for a faction at a node.</summary>
+        public float GetInfluenceMultiplier(string nodeId, string factionId)
+            => Influence.GetMultiplier(nodeId, factionId);
+
+        /// <summary>Stability multiplier (exp(logAmp)) for a faction at a node.</summary>
+        public float GetStabilityMultiplier(string nodeId, string factionId)
+            => Stability.GetMultiplier(nodeId, factionId);
+
+        // ── Tick ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Advance the faction simulation by <paramref name="dt"/> ticks.
+        ///
+        /// Order:
+        ///   1. Propagator.Step on Presence  (spread along graph edges)
+        ///   2. Propagator.Step on Influence
+        ///   3. Propagator.Step on Stability
+        ///   4. Check dominance changes → fire OnDominanceChanged callbacks
+        /// </summary>
         public void Tick(float dt)
         {
             if (dt <= 0f) return;
 
-            RecomputeAggregates();
-            UpdatePoliticalHealth(dt);
+            Propagator.Step(_dimension, Presence,  dt);
+            Propagator.Step(_dimension, Influence, dt);
+            Propagator.Step(_dimension, Stability, dt);
+
+            CheckDominanceChanges();
         }
 
-        // ── Private ───────────────────────────────────────────────────────────
+        // ── Private ───────────────────────────────────────────────────────────────
 
-        private void RecomputeAggregates()
+        private void CheckDominanceChanges()
         {
-            // Reset all faction counts — sorted for determinism
-            foreach (var factionId in GetFactionIdsSorted())
+            if (OnDominanceChanged == null) return;
+
+            // Union of: nodes with active presence now + nodes we previously tracked
+            var activeNodes = Presence.GetActiveNodeIdsSorted();
+            var nodeSet = new HashSet<string>(activeNodes, StringComparer.Ordinal);
+            foreach (var n in _lastDominant.Keys) nodeSet.Add(n);
+
+            var allNodes = new List<string>(nodeSet);
+            allNodes.Sort(StringComparer.Ordinal);
+
+            // Collect changes before firing (don't mutate _lastDominant during iteration)
+            var changes = new List<(string nodeId, string oldDom, string newDom)>();
+
+            foreach (var nodeId in allNodes)
             {
-                var f = _factions[factionId];
-                f.ControlledNodeCount = 0;
-                f.AverageStability    = 0f;
-                f.AverageWarExposure  = 0f;
+                string newDom = Presence.GetDominantChannel(nodeId);
+                _lastDominant.TryGetValue(nodeId, out string oldDom);
+
+                if (newDom != oldDom)
+                    changes.Add((nodeId, oldDom, newDom));
             }
 
-            // Accumulators
-            var stabilitySum   = new Dictionary<string, float>(StringComparer.Ordinal);
-            var warExposureSum = new Dictionary<string, float>(StringComparer.Ordinal);
-            var nodeCount      = new Dictionary<string, int>(StringComparer.Ordinal);
-
-            // Iterate all controlled nodes in sorted order
-            var controlledNodes = new List<string>(_controllers.Keys);
-            controlledNodes.Sort(StringComparer.Ordinal);
-
-            foreach (var nodeId in controlledNodes)
+            // Apply updates then fire
+            foreach (var (nodeId, oldDom, newDom) in changes)
             {
-                string factionId = _controllers[nodeId];
-                if (!_factions.TryGetValue(factionId, out var faction)) continue;
+                if (newDom == null) _lastDominant.Remove(nodeId);
+                else                _lastDominant[nodeId] = newDom;
 
-                faction.ControlledNodeCount++;
-
-                // Stability defaults to 1.0 (fully stable) when game layer hasn't set it
-                float stab   = _nodeStability.TryGetValue(nodeId, out float s) ? s : 1f;
-                // War exposure defaults to 0.0 (peace) when game layer hasn't set it
-                float warExp = _nodeWarExposure.TryGetValue(nodeId, out float w) ? w : 0f;
-
-                stabilitySum.TryGetValue(factionId, out float sSum);
-                warExposureSum.TryGetValue(factionId, out float wSum);
-                nodeCount.TryGetValue(factionId, out int n);
-
-                stabilitySum[factionId]   = sSum + stab;
-                warExposureSum[factionId] = wSum + warExp;
-                nodeCount[factionId]      = n + 1;
+                OnDominanceChanged.Invoke(nodeId, oldDom, newDom);
             }
-
-            // Finalise averages — sorted for determinism
-            foreach (var factionId in GetFactionIdsSorted())
-            {
-                var f = _factions[factionId];
-                if (nodeCount.TryGetValue(factionId, out int n) && n > 0)
-                {
-                    f.AverageStability   = stabilitySum[factionId]   / n;
-                    f.AverageWarExposure = warExposureSum[factionId] / n;
-                }
-                else
-                {
-                    // No controlled nodes: feed back current political stability so it stays put
-                    f.AverageStability   = f.PoliticalStability;
-                    f.AverageWarExposure = 0f;
-                }
-            }
-        }
-
-        private void UpdatePoliticalHealth(float dt)
-        {
-            // Collect crossing events to fire after iteration (don't mutate while iterating)
-            var collapseEvents  = new List<string>();
-            var stabilizeEvents = new List<string>();
-
-            foreach (var factionId in GetFactionIdsSorted())
-            {
-                var f = _factions[factionId];
-
-                float oldStability  = f.PoliticalStability;
-
-                // ── Political stability: exponential smoothing toward AverageStability ──
-                // k is the delta-time-correct blending factor: approaches 1 as dt grows
-                float k = 1f - MathF.Exp(-StabilitySmoothingRate * dt);
-                f.PoliticalStability += (f.AverageStability - f.PoliticalStability) * k;
-                f.PoliticalStability  = Math.Clamp(f.PoliticalStability, 0f, 1f);
-
-                // ── War exhaustion ─────────────────────────────────────────────────────
-                if (f.AverageWarExposure > WarExposureThreshold)
-                    f.WarExhaustion += WarExhaustionGainRate * f.AverageWarExposure * dt;
-                else
-                    f.WarExhaustion = Math.Max(0f, f.WarExhaustion - WarExhaustionDecayRate * dt);
-
-                f.WarExhaustion = Math.Clamp(f.WarExhaustion, 0f, 1f);
-
-                // ── IsCollapsing flag ──────────────────────────────────────────────────
-                bool wasCollapsing = f.IsCollapsing;
-                f.IsCollapsing = f.PoliticalStability < StabilityCrisisThreshold;
-
-                // ── Threshold crossings ────────────────────────────────────────────────
-                if (!wasCollapsing && f.IsCollapsing)
-                    collapseEvents.Add(factionId);
-
-                if (oldStability < StabilityStableThreshold &&
-                    f.PoliticalStability >= StabilityStableThreshold)
-                    stabilizeEvents.Add(factionId);
-            }
-
-            // Fire callbacks outside the iteration loop
-            foreach (var id in collapseEvents)  OnFactionCollapse?.Invoke(id);
-            foreach (var id in stabilizeEvents) OnFactionStabilize?.Invoke(id);
-        }
-
-        private static void ValidateId(string value, string paramName)
-        {
-            if (string.IsNullOrEmpty(value))
-                throw new ArgumentException($"{paramName} cannot be null or empty", paramName);
         }
     }
 }

@@ -20,7 +20,8 @@ namespace Odengine.Tests.Fuzz
     public class Fuzz_CoreTests
     {
         private static FieldProfile MakeProfile(string id = "fuzz") =>
-            new FieldProfile(id) {
+            new FieldProfile(id)
+            {
                 PropagationRate = 0.5f,
                 EdgeResistanceScale = 1f,
                 DecayRate = 0.1f,
@@ -76,11 +77,11 @@ namespace Odengine.Tests.Fuzz
 
         // ─── No NaN / Inf across several seeds ───────────────────────────────
 
-        [Test] public void Fuzz_Seed1_NoNaN_NoInfinity()   => RunFuzzScenario(1,    10, 20, 5, 50);
-        [Test] public void Fuzz_Seed2_NoNaN_NoInfinity()   => RunFuzzScenario(2,    15, 30, 8, 50);
-        [Test] public void Fuzz_Seed3_NoNaN_NoInfinity()   => RunFuzzScenario(3,    20, 40, 3, 50);
-        [Test] public void Fuzz_Seed42_NoNaN_NoInfinity()  => RunFuzzScenario(42,    8, 16, 6, 50);
-        [Test] public void Fuzz_Seed999_NoNaN_NoInfinity() => RunFuzzScenario(999,  12, 25, 4, 100);
+        [Test] public void Fuzz_Seed1_NoNaN_NoInfinity() => RunFuzzScenario(1, 10, 20, 5, 50);
+        [Test] public void Fuzz_Seed2_NoNaN_NoInfinity() => RunFuzzScenario(2, 15, 30, 8, 50);
+        [Test] public void Fuzz_Seed3_NoNaN_NoInfinity() => RunFuzzScenario(3, 20, 40, 3, 50);
+        [Test] public void Fuzz_Seed42_NoNaN_NoInfinity() => RunFuzzScenario(42, 8, 16, 6, 50);
+        [Test] public void Fuzz_Seed999_NoNaN_NoInfinity() => RunFuzzScenario(999, 12, 25, 4, 100);
 
         // ─── Hash stability — same seed produces same hash ────────────────────
 
@@ -171,7 +172,8 @@ namespace Odengine.Tests.Fuzz
             uint seed = 13;
             var rng = new DeterministicRng(seed);
             var dim = TestBuilders.BuildRandomDimension(rng, 12, 24);
-            var profile = new FieldProfile("clamp-stress") {
+            var profile = new FieldProfile("clamp-stress")
+            {
                 PropagationRate = 5f,   // very high
                 DecayRate = 0f,
                 MinLogAmpClamp = -10f,
@@ -204,7 +206,8 @@ namespace Odengine.Tests.Fuzz
             dim.AddNode("a"); dim.AddNode("b");
             dim.AddEdge("a", "b", 1f);
 
-            var profile = new FieldProfile("decay-test") {
+            var profile = new FieldProfile("decay-test")
+            {
                 PropagationRate = 0.1f,
                 DecayRate = 2f,         // very high decay
                 MinLogAmpClamp = -20f,

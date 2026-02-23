@@ -534,5 +534,194 @@ namespace Odengine.Tests.Core.Fields
             field.SetLogAmp("n", "ch", -1000f); // well below MinLogAmpClamp
             Assert.Greater(field.GetMultiplier("n", "ch"), 0f);
         }
+
+        // ── GetDominantChannel ──────────────────────────────────────────────
+
+        [Test]
+        public void GetDominantChannel_EmptyNode_ReturnsNull()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            Assert.That(field.GetDominantChannel("node"), Is.Null);
+        }
+
+        [Test]
+        public void GetDominantChannel_NullNodeId_ReturnsNull()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            Assert.That(field.GetDominantChannel(null), Is.Null);
+        }
+
+        [Test]
+        public void GetDominantChannel_EmptyNodeId_ReturnsNull()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            Assert.That(field.GetDominantChannel(""), Is.Null);
+        }
+
+        [Test]
+        public void GetDominantChannel_SinglePositiveChannel_ReturnsIt()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("n", "faction_a", 1.5f);
+            Assert.That(field.GetDominantChannel("n"), Is.EqualTo("faction_a"));
+        }
+
+        [Test]
+        public void GetDominantChannel_HighestPositiveChannel_Wins()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("n", "faction_a", 1.0f);
+            field.SetLogAmp("n", "faction_b", 2.0f);
+            field.SetLogAmp("n", "faction_c", 0.5f);
+            Assert.That(field.GetDominantChannel("n"), Is.EqualTo("faction_b"));
+        }
+
+        [Test]
+        public void GetDominantChannel_NegativeChannelOnly_ReturnsNull()
+        {
+            // Negative logAmp is below neutral baseline — never dominant
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("n", "faction_a", -1.0f);
+            Assert.That(field.GetDominantChannel("n"), Is.Null,
+                "Negative logAmp is below neutral (0) — not dominant");
+        }
+
+        [Test]
+        public void GetDominantChannel_MixedPositiveAndNegative_IgnoresNegative()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("n", "faction_a",  1.0f);
+            field.SetLogAmp("n", "faction_b", -2.0f); // very negative — should not win
+            Assert.That(field.GetDominantChannel("n"), Is.EqualTo("faction_a"));
+        }
+
+        [Test]
+        public void GetDominantChannel_TieBreaking_OrdinalFirstWins()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("n", "faction_zzz", 1.0f);
+            field.SetLogAmp("n", "faction_aaa", 1.0f);
+            // Both equal logAmp — "faction_aaa" < "faction_zzz" in Ordinal order
+            Assert.That(field.GetDominantChannel("n"), Is.EqualTo("faction_aaa"),
+                "Tie-breaking must be deterministic: Ordinal-first channelId wins");
+        }
+
+        [Test]
+        public void GetDominantChannel_TieBreaking_IsDeterministicRegardlessOfInsertOrder()
+        {
+            // Insert in reverse order — result must be identical
+            var field1 = new ScalarField("f", DefaultProfile());
+            field1.SetLogAmp("n", "faction_aaa", 1.0f);
+            field1.SetLogAmp("n", "faction_zzz", 1.0f);
+
+            var field2 = new ScalarField("f", DefaultProfile());
+            field2.SetLogAmp("n", "faction_zzz", 1.0f);
+            field2.SetLogAmp("n", "faction_aaa", 1.0f);
+
+            Assert.That(field1.GetDominantChannel("n"), Is.EqualTo(field2.GetDominantChannel("n")),
+                "Tie-breaking result must not depend on insertion order");
+        }
+
+        [Test]
+        public void GetDominantChannel_OtherNodeChannels_NotConsidered()
+        {
+            // High logAmp on a different node must not affect the queried node
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("node_a", "faction_a", 0.5f);
+            field.SetLogAmp("node_b", "faction_b", 9.9f); // very high — but wrong node
+            Assert.That(field.GetDominantChannel("node_a"), Is.EqualTo("faction_a"),
+                "Channels on other nodes must not influence the queried node's dominant");
+        }
+
+        [Test]
+        public void GetDominantChannel_AfterErosionToNeutral_ReturnsNull()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("n", "faction_a", 1.0f);
+            field.SetLogAmp("n", "faction_a", 0f); // erase back to neutral
+            Assert.That(field.GetDominantChannel("n"), Is.Null,
+                "After logAmp returns to neutral (0), node should have no dominant");
+        }
+
+        [Test]
+        public void GetDominantChannel_ThreeFactionsOneNegativeOneTie_IgnoresNegative()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("n", "empire_red",  1.0f);
+            field.SetLogAmp("n", "empire_blue", 1.0f);  // tie with red
+            field.SetLogAmp("n", "pirates",    -0.5f);  // below baseline
+            // Tie between red and blue — ordinal order: "empire_blue" < "empire_red"
+            Assert.That(field.GetDominantChannel("n"), Is.EqualTo("empire_blue"));
+        }
+
+        // ── GetActiveChannelIdsSortedForNode ────────────────────────────────
+
+        [Test]
+        public void GetActiveChannelIdsSortedForNode_EmptyNode_ReturnsEmpty()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            Assert.That(field.GetActiveChannelIdsSortedForNode("n").Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void GetActiveChannelIdsSortedForNode_NullNode_ReturnsEmpty()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            Assert.That(field.GetActiveChannelIdsSortedForNode(null).Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void GetActiveChannelIdsSortedForNode_ReturnsOnlyThatNodesChannels()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("node_a", "ch1", 1f);
+            field.SetLogAmp("node_a", "ch2", 1f);
+            field.SetLogAmp("node_b", "ch3", 1f); // different node
+
+            var channels = field.GetActiveChannelIdsSortedForNode("node_a");
+            Assert.That(channels.Count, Is.EqualTo(2));
+            Assert.That(channels, Does.Contain("ch1"));
+            Assert.That(channels, Does.Contain("ch2"));
+            Assert.That(channels, Does.Not.Contain("ch3"));
+        }
+
+        [Test]
+        public void GetActiveChannelIdsSortedForNode_ResultIsOrdinalSorted()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("n", "zzz", 1f);
+            field.SetLogAmp("n", "aaa", 1f);
+            field.SetLogAmp("n", "mmm", 1f);
+
+            var channels = field.GetActiveChannelIdsSortedForNode("n");
+            Assert.That(channels[0], Is.EqualTo("aaa"));
+            Assert.That(channels[1], Is.EqualTo("mmm"));
+            Assert.That(channels[2], Is.EqualTo("zzz"));
+        }
+
+        // ── GetActiveNodeIdsSorted ──────────────────────────────────────────
+
+        [Test]
+        public void GetActiveNodeIdsSorted_EmptyField_ReturnsEmpty()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            Assert.That(field.GetActiveNodeIdsSorted().Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void GetActiveNodeIdsSorted_MultipleNodes_ReturnsSortedUnique()
+        {
+            var field = new ScalarField("f", DefaultProfile());
+            field.SetLogAmp("zzz", "ch", 1f);
+            field.SetLogAmp("aaa", "ch", 1f);
+            field.SetLogAmp("mmm", "ch", 1f);
+            field.SetLogAmp("aaa", "ch2", 1f); // same node, second channel
+
+            var nodes = field.GetActiveNodeIdsSorted();
+            Assert.That(nodes.Count, Is.EqualTo(3));
+            Assert.That(nodes[0], Is.EqualTo("aaa"));
+            Assert.That(nodes[1], Is.EqualTo("mmm"));
+            Assert.That(nodes[2], Is.EqualTo("zzz"));
+        }
     }
 }

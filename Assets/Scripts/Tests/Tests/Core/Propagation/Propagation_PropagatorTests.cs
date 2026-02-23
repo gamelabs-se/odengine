@@ -34,7 +34,8 @@ namespace Odengine.Tests.Core.Propagation
         private static ScalarField MakeField(Dimension dim, float propagationRate = 1f,
             float edgeResistanceScale = 1f, float decayRate = 0f)
         {
-            var profile = new FieldProfile("test") {
+            var profile = new FieldProfile("test")
+            {
                 PropagationRate = propagationRate,
                 EdgeResistanceScale = edgeResistanceScale,
                 DecayRate = decayRate

@@ -20,7 +20,8 @@ namespace Odengine.Tests.Scenarios
     public class Scenarios_LongHorizonTests
     {
         private static FieldProfile TradeProfile(string id = "trade") =>
-            new FieldProfile(id) {
+            new FieldProfile(id)
+            {
                 PropagationRate = 0.3f,
                 EdgeResistanceScale = 1f,
                 DecayRate = 0.05f,
@@ -29,9 +30,12 @@ namespace Odengine.Tests.Scenarios
             };
 
         private static FieldProfile EcoProfile() =>
-            new FieldProfile("economy") {
-                PropagationRate = 0.3f, DecayRate = 0.05f,
-                MinLogAmpClamp = -20f, MaxLogAmpClamp = 20f
+            new FieldProfile("economy")
+            {
+                PropagationRate = 0.3f,
+                DecayRate = 0.05f,
+                MinLogAmpClamp = -20f,
+                MaxLogAmpClamp = 20f
             };
 
         private static void AssertNoNaNOrInfinity(ScalarField field, int tick)
@@ -104,8 +108,12 @@ namespace Odengine.Tests.Scenarios
             foreach (var n in nodes) dim.AddNode(n);
             dim.AddEdge("a", "b", 0.5f); dim.AddEdge("b", "c", 0.5f); dim.AddEdge("c", "d", 0.5f);
 
-            var profile = new FieldProfile("clamped") {
-                PropagationRate = 1f, DecayRate = 0f, MinLogAmpClamp = -5f, MaxLogAmpClamp = 5f
+            var profile = new FieldProfile("clamped")
+            {
+                PropagationRate = 1f,
+                DecayRate = 0f,
+                MinLogAmpClamp = -5f,
+                MaxLogAmpClamp = 5f
             };
             var field = dim.AddField("f", profile);
             field.SetLogAmp("a", "ch", 20f); // exceeds clamp, should be clamped
@@ -170,8 +178,12 @@ namespace Odengine.Tests.Scenarios
             for (int i = 0; i < chain.Length - 1; i++)
                 dim.AddEdge(chain[i], chain[i + 1], 0f);
 
-            var profile = new FieldProfile("decay") {
-                PropagationRate = 1f, DecayRate = 1f, MinLogAmpClamp = -20f, MaxLogAmpClamp = 20f
+            var profile = new FieldProfile("decay")
+            {
+                PropagationRate = 1f,
+                DecayRate = 1f,
+                MinLogAmpClamp = -20f,
+                MaxLogAmpClamp = 20f
             };
             var field = dim.AddField("f", profile);
             field.SetLogAmp("n0", "signal", 5f);
@@ -309,7 +321,8 @@ namespace Odengine.Tests.Scenarios
             for (int i = 0; i < chainLength; i++) dim.AddNode($"n{i}");
             for (int i = 0; i < chainLength - 1; i++) dim.AddEdge($"n{i}", $"n{i + 1}", 0f);
 
-            var field = dim.AddField("f", new FieldProfile("f") {
+            var field = dim.AddField("f", new FieldProfile("f")
+            {
                 PropagationRate = 1f,
                 DecayRate = 0f,
                 MinLogAmpClamp = -20f,
@@ -336,8 +349,12 @@ namespace Odengine.Tests.Scenarios
             dim.AddEdge("a", "b", 0f);
             dim.AddEdge("b", "a", 0f);
 
-            var profile = new FieldProfile("sym") {
-                PropagationRate = 0.5f, DecayRate = 0.5f, MinLogAmpClamp = -20f, MaxLogAmpClamp = 20f
+            var profile = new FieldProfile("sym")
+            {
+                PropagationRate = 0.5f,
+                DecayRate = 0.5f,
+                MinLogAmpClamp = -20f,
+                MaxLogAmpClamp = 20f
             };
             var field = dim.AddField("f", profile);
             field.SetLogAmp("a", "ch", 4f);

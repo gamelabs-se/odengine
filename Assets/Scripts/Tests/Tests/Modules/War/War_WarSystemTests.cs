@@ -30,11 +30,11 @@ namespace Odengine.Tests.War
         {
             return new FieldProfile("war.exposure")
             {
-                PropagationRate    = propagationRate,
+                PropagationRate = propagationRate,
                 EdgeResistanceScale = edgeResistanceScale,
-                DecayRate          = decayRate,
-                MinLogAmpClamp     = -20f,
-                MaxLogAmpClamp     = 20f
+                DecayRate = decayRate,
+                MinLogAmpClamp = -20f,
+                MaxLogAmpClamp = 20f
             };
         }
 
@@ -123,7 +123,7 @@ namespace Odengine.Tests.War
         {
             // Inject same initial logAmp into two systems, one cooling, one ambient
             var (_, warCeasefire) = MakeSingle("earth");
-            var (_, warAmbient)   = MakeSingle("earth");
+            var (_, warAmbient) = MakeSingle("earth");
 
             warCeasefire.Exposure.AddLogAmp("earth", "x", 2f);
             warAmbient.Exposure.AddLogAmp("earth", "x", 2f);
@@ -137,7 +137,7 @@ namespace Odengine.Tests.War
             warAmbient.Tick(1f); // ambient only
 
             float ceasefireRemaining = warCeasefire.GetExposureLogAmp("earth");
-            float ambientRemaining   = warAmbient.GetExposureLogAmp("earth");
+            float ambientRemaining = warAmbient.GetExposureLogAmp("earth");
 
             Assert.That(ceasefireRemaining, Is.LessThan(ambientRemaining),
                 "Ceasefire decay should be faster than ambient decay");
@@ -460,7 +460,7 @@ namespace Odengine.Tests.War
             dim.AddNode("land_node");
             dim.AddNode("sea_node");
             dim.AddEdge("front", "land_node", resistance: 0f, "land");
-            dim.AddEdge("front", "sea_node",  resistance: 0f, "sea");
+            dim.AddEdge("front", "sea_node", resistance: 0f, "sea");
 
             // Create a WarSystem but manually call Propagator with a tag filter
             // to verify the edge tag mechanism works correctly
@@ -498,8 +498,10 @@ namespace Odengine.Tests.War
 
             var ecoProfile = new FieldProfile("economy.availability")
             {
-                PropagationRate = 0f, DecayRate = 0f,
-                MinLogAmpClamp = -20f, MaxLogAmpClamp = 20f
+                PropagationRate = 0f,
+                DecayRate = 0f,
+                MinLogAmpClamp = -20f,
+                MaxLogAmpClamp = 20f
             };
             var availField = dim.AddField("economy.availability", ecoProfile);
 
@@ -598,8 +600,8 @@ namespace Odengine.Tests.War
             var dim = new Dimension();
             var nodes = new[] { "alpha", "beta", "gamma", "delta" };
             foreach (var n in nodes) dim.AddNode(n);
-            dim.AddEdge("alpha", "beta",  resistance: 0.5f);
-            dim.AddEdge("beta",  "gamma", resistance: 1f);
+            dim.AddEdge("alpha", "beta", resistance: 0.5f);
+            dim.AddEdge("beta", "gamma", resistance: 1f);
             dim.AddEdge("gamma", "delta", resistance: 2f);
             dim.AddEdge("delta", "alpha", resistance: 0.5f);
 
@@ -621,7 +623,7 @@ namespace Odengine.Tests.War
                 foreach (var n in nodes)
                 {
                     float logAmp = war.GetExposureLogAmp(n);
-                    Assert.That(float.IsNaN(logAmp), Is.False,     $"NaN at tick {tick}, node {n}");
+                    Assert.That(float.IsNaN(logAmp), Is.False, $"NaN at tick {tick}, node {n}");
                     Assert.That(float.IsInfinity(logAmp), Is.False, $"Infinity at tick {tick}, node {n}");
                 }
             }
@@ -632,10 +634,10 @@ namespace Odengine.Tests.War
         {
             var profile = new FieldProfile("war.exposure")
             {
-                PropagationRate    = 0f,
-                DecayRate          = 0f,
-                MinLogAmpClamp     = -5f,
-                MaxLogAmpClamp     = 5f
+                PropagationRate = 0f,
+                DecayRate = 0f,
+                MinLogAmpClamp = -5f,
+                MaxLogAmpClamp = 5f
             };
             var dim = new Dimension();
             dim.AddNode("earth");

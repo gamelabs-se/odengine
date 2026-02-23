@@ -32,22 +32,22 @@ namespace Odengine.War
     public sealed class WarSystem
     {
         // ── Exposure dynamics ───────────────────────────────────────────────
-        private const float ExposureGrowthRate   = 0.05f;   // logAmp/tick at war
-        private const float AmbientDecayRate     = 0.02f;   // logAmp/tick in peace
-        private const float CeasefireDecayRate   = 0.06f;   // logAmp/tick cooling
-        private const float ExposureEpsilon      = 0.0001f; // treat as zero
+        private const float ExposureGrowthRate = 0.05f;   // logAmp/tick at war
+        private const float AmbientDecayRate = 0.02f;   // logAmp/tick in peace
+        private const float CeasefireDecayRate = 0.06f;   // logAmp/tick cooling
+        private const float ExposureEpsilon = 0.0001f; // treat as zero
 
         // Single channel name for the exposure field
         // (one dimension per node — the field is effectively a node→logAmp map)
         private const string ExposureChannel = "x";
 
         // ── Occupation dynamics ─────────────────────────────────────────────
-        private const float OccupationBaseRate          = 0.1f;  // 1/ticks for empty node
-        private const float OccupationStabilityResist   = 0.2f;  // stability dampens progress
+        private const float OccupationBaseRate = 0.1f;  // 1/ticks for empty node
+        private const float OccupationStabilityResist = 0.2f;  // stability dampens progress
 
         // ── State sets ──────────────────────────────────────────────────────
-        private readonly HashSet<string> _activeWarNodes  = new HashSet<string>(StringComparer.Ordinal);
-        private readonly HashSet<string> _coolingNodes    = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _activeWarNodes = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _coolingNodes = new HashSet<string>(StringComparer.Ordinal);
 
         // nodeId → stability [0..1] (provided by game layer via SetNodeStability)
         private readonly Dictionary<string, float> _stability = new Dictionary<string, float>(StringComparer.Ordinal);
@@ -112,7 +112,7 @@ namespace Odengine.War
         /// </summary>
         public void DeclareOccupation(string nodeId, string attackerId)
         {
-            if (string.IsNullOrEmpty(nodeId))   throw new ArgumentException(nameof(nodeId));
+            if (string.IsNullOrEmpty(nodeId)) throw new ArgumentException(nameof(nodeId));
             if (string.IsNullOrEmpty(attackerId)) throw new ArgumentException(nameof(attackerId));
             _occupations[nodeId] = (attackerId, 0f);
         }
@@ -257,8 +257,8 @@ namespace Odengine.War
         private List<string> GetAllRelevantNodeIdsSorted()
         {
             var set = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var n in _activeWarNodes)  set.Add(n);
-            foreach (var n in _coolingNodes)    set.Add(n);
+            foreach (var n in _activeWarNodes) set.Add(n);
+            foreach (var n in _coolingNodes) set.Add(n);
             foreach (var n in Exposure.GetActiveNodeIdsSortedForChannel(ExposureChannel))
                 set.Add(n);
 
