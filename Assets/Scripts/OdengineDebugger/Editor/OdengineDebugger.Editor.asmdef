@@ -1,0 +1,19 @@
+{
+    "name": "OdengineDebugger.Editor",
+    "rootNamespace": "OdengineDebugger.Editor",
+    "references": [
+        "OdengineDebugger.Runtime",
+        "Odengine"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
