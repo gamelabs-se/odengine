@@ -608,7 +608,7 @@ namespace Odengine.Tests.Faction
             {
                 var fs = MakeSystem();
                 fs.AddPresence("node", first,  1.0f);
-                fs.AddPresence("node", second, 0.8f);
+                fs.AddPresence("node", second, 1.0f); // equal logAmps — tests Ordinal tie-break
                 return fs.GetDominantFaction("node");
             }
 

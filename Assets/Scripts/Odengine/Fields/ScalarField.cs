@@ -86,7 +86,7 @@ namespace Odengine.Fields
 
         public void AddLogAmp(string nodeId, string channelId, float deltaLogAmp)
         {
-            if (MathF.Abs(deltaLogAmp) < LogEpsilon)
+            if (string.IsNullOrEmpty(nodeId) || string.IsNullOrEmpty(channelId))
                 return;
 
             float current = GetLogAmp(nodeId, channelId);

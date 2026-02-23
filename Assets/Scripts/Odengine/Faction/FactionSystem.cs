@@ -198,8 +198,6 @@ namespace Odengine.Faction
 
         private void CheckDominanceChanges()
         {
-            if (OnDominanceChanged == null) return;
-
             // Union of: nodes with active presence now + nodes we previously tracked
             var activeNodes = Presence.GetActiveNodeIdsSorted();
             var nodeSet = new HashSet<string>(activeNodes, StringComparer.Ordinal);
@@ -226,7 +224,7 @@ namespace Odengine.Faction
                 if (newDom == null) _lastDominant.Remove(nodeId);
                 else                _lastDominant[nodeId] = newDom;
 
-                OnDominanceChanged.Invoke(nodeId, oldDom, newDom);
+                OnDominanceChanged?.Invoke(nodeId, oldDom, newDom);
             }
         }
     }
