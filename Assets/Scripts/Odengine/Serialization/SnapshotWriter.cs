@@ -27,7 +27,7 @@ namespace Odengine.Serialization
     /// </summary>
     public sealed class SnapshotWriter
     {
-        internal const uint   Magic         = 0x4F44534E; // 'ODSN'
+        internal const uint Magic = 0x4F44534E; // 'ODSN'
         internal const ushort SchemaVersion = 1;
 
         private readonly SnapshotConfig _config;
@@ -113,7 +113,7 @@ namespace Odengine.Serialization
             for (uint i = 0; i < pool.Length; i++) poolIdx[pool[i]] = i;
 
             using var ms = new MemoryStream();
-            using var w  = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
+            using var w = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
 
             // ── Header ────────────────────────────────────────────────────────
             w.Write(Magic);
@@ -163,7 +163,7 @@ namespace Odengine.Serialization
 
             foreach (var fieldId in fieldIds)
             {
-                var field   = dimension.Fields[fieldId];
+                var field = dimension.Fields[fieldId];
                 var profile = field.Profile;
 
                 w.Write(poolIdx[fieldId]);

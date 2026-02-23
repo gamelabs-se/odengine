@@ -25,10 +25,10 @@ namespace Odengine.Tests.Snapshots
         {
             var dim = new Dimension();
             dim.AddNode("earth", "Earth");
-            dim.AddNode("mars",  "Mars");
-            dim.AddNode("belt",  "Asteroid Belt");
+            dim.AddNode("mars", "Mars");
+            dim.AddNode("belt", "Asteroid Belt");
             dim.AddEdge("earth", "mars", 0.5f, "space");
-            dim.AddEdge("mars",  "belt", 0.3f, "space");
+            dim.AddEdge("mars", "belt", 0.3f, "space");
             return dim;
         }
 
@@ -36,10 +36,10 @@ namespace Odengine.Tests.Snapshots
         {
             var dim = new Dimension();
             dim.AddNode("earth", "Earth");
-            dim.AddNode("mars",  "Mars");
-            dim.AddNode("belt",  "Asteroid Belt");
+            dim.AddNode("mars", "Mars");
+            dim.AddNode("belt", "Asteroid Belt");
             dim.AddEdge("earth", "mars", 0.5f, "space");
-            dim.AddEdge("mars",  "belt", 0.3f, "space");
+            dim.AddEdge("mars", "belt", 0.3f, "space");
             return dim;
         }
 
@@ -69,11 +69,11 @@ namespace Odengine.Tests.Snapshots
             snap.RestoreFields(dim2);
             snap.RestoreSystem(war2);
 
-            Assert.IsTrue(war2.IsAtWar("earth"),               "Active war state must be restored");
+            Assert.IsTrue(war2.IsAtWar("earth"), "Active war state must be restored");
             Assert.AreEqual("earth_empire", war2.GetOccupationAttacker("mars"), "Attacker must be restored");
-            Assert.AreEqual(progressBefore,  war2.GetOccupationProgress("mars"), 1e-5f, "Progress must be restored");
-            Assert.AreEqual(0.6f,            war2.GetNodeStability("mars"),      1e-6f, "Stability must be restored");
-            Assert.AreEqual(exposureBefore,  war2.GetExposureLogAmp("earth"),   1e-5f, "Exposure logAmp must be restored");
+            Assert.AreEqual(progressBefore, war2.GetOccupationProgress("mars"), 1e-5f, "Progress must be restored");
+            Assert.AreEqual(0.6f, war2.GetNodeStability("mars"), 1e-6f, "Stability must be restored");
+            Assert.AreEqual(exposureBefore, war2.GetExposureLogAmp("earth"), 1e-5f, "Exposure logAmp must be restored");
         }
 
         [Test]
@@ -111,7 +111,7 @@ namespace Odengine.Tests.Snapshots
             var dim = BuildWorld();
             var war = new WarSystem(dim, P("war"), new WarConfig
             {
-                OccupationBaseRate        = 0.5f,
+                OccupationBaseRate = 0.5f,
                 OccupationStabilityResist = 0.0f
             });
             war.DeclareWar("mars");
@@ -146,9 +146,9 @@ namespace Odengine.Tests.Snapshots
             var dim = BuildWorld();
             var factions = new FactionSystem(dim, P("fp"), P("fi"), P("fs"));
             factions.AddPresence("earth", "empire_red", 2.0f);
-            factions.AddPresence("earth", "rebels",     0.3f);
-            factions.AddPresence("mars",  "empire_red", 1.5f);
-            factions.AddPresence("belt",  "pirates",    1.0f);
+            factions.AddPresence("earth", "rebels", 0.3f);
+            factions.AddPresence("mars", "empire_red", 1.5f);
+            factions.AddPresence("belt", "pirates", 1.0f);
 
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 1, 0, new List<ISnapshotParticipant>());
             var dim2 = BuildWorld2();
@@ -158,7 +158,7 @@ namespace Odengine.Tests.Snapshots
 
             Assert.AreEqual("empire_red", factions2.GetDominantFaction("earth"));
             Assert.AreEqual("empire_red", factions2.GetDominantFaction("mars"));
-            Assert.AreEqual("pirates",    factions2.GetDominantFaction("belt"));
+            Assert.AreEqual("pirates", factions2.GetDominantFaction("belt"));
         }
 
         [Test]
@@ -167,8 +167,8 @@ namespace Odengine.Tests.Snapshots
             var dim = BuildWorld();
             var factions = new FactionSystem(dim, P("fp"), P("fi"), P("fs"));
             factions.AddPresence("earth", "empire_red", 2.5f);
-            factions.AddPresence("mars",  "empire_red", 1.5f);
-            factions.AddPresence("mars",  "rebels",     0.5f);
+            factions.AddPresence("mars", "empire_red", 1.5f);
+            factions.AddPresence("mars", "rebels", 0.5f);
 
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 1, 0, new List<ISnapshotParticipant>());
             var dim2 = BuildWorld2();
@@ -192,10 +192,10 @@ namespace Odengine.Tests.Snapshots
             var dim = BuildWorld();
             var economy = new EconomySystem(dim, P("ep"));
             economy.InjectTrade("earth", "water", 50f);
-            economy.InjectTrade("mars",  "ore",   30f);
+            economy.InjectTrade("mars", "ore", 30f);
 
             float priceEarth = economy.SamplePrice("earth", "water", 5f);
-            float priceMars  = economy.SamplePrice("mars",  "ore",   3f);
+            float priceMars = economy.SamplePrice("mars", "ore", 3f);
 
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 1, 0, new List<ISnapshotParticipant>());
             var dim2 = BuildWorld2();
@@ -204,7 +204,7 @@ namespace Odengine.Tests.Snapshots
 
             Assert.AreEqual(priceEarth, economy2.SamplePrice("earth", "water", 5f), 1e-4f,
                 "Earth water price must match after restore");
-            Assert.AreEqual(priceMars,  economy2.SamplePrice("mars",  "ore",   3f), 1e-4f,
+            Assert.AreEqual(priceMars, economy2.SamplePrice("mars", "ore", 3f), 1e-4f,
                 "Mars ore price must match after restore");
         }
 
@@ -260,7 +260,7 @@ namespace Odengine.Tests.Snapshots
             var dim = BuildWorld();
             var f = dim.AddField("data", P("data"));
             f.SetLogAmp("earth", "signal", 3.0f);
-            f.SetLogAmp("belt",  "noise",  1.5f);
+            f.SetLogAmp("belt", "noise", 1.5f);
 
             var restored = new SnapshotReader().Read(
                 new SnapshotWriter().WriteFull(dim, 1, 0)).ReconstructDimension();
@@ -275,8 +275,8 @@ namespace Odengine.Tests.Snapshots
             // Fields
             var rf = restored.GetField("data");
             Assert.AreEqual(3.0f, rf.GetLogAmp("earth", "signal"), 1e-6f);
-            Assert.AreEqual(1.5f, rf.GetLogAmp("belt",  "noise"),  1e-6f);
-            Assert.AreEqual(0f,   rf.GetLogAmp("mars",  "signal"), 1e-9f);
+            Assert.AreEqual(1.5f, rf.GetLogAmp("belt", "noise"), 1e-6f);
+            Assert.AreEqual(0f, rf.GetLogAmp("mars", "signal"), 1e-9f);
         }
 
         // ── DeltaIndex full run-recording workflow ─────────────────────────────
@@ -301,7 +301,7 @@ namespace Odengine.Tests.Snapshots
             for (ulong tick = 1; tick <= 4; tick++)
             {
                 f.SetLogAmp("earth", "pressure", 0.5f + tick * 0.1f);
-                f.SetLogAmp("mars",  "signal",   tick * 0.2f);
+                f.SetLogAmp("mars", "signal", tick * 0.2f);
                 var delta = writer.WriteDelta(dim, prev, tick, tick * 1.0, tick - 1, (ushort)tick);
                 snapshots.Add(delta);
                 prev = delta;
@@ -312,7 +312,7 @@ namespace Odengine.Tests.Snapshots
             {
                 var at = reader.ReadAtTick(snapshots, tick).ReconstructDimension();
                 float expectedPressure = 0.5f + tick * 0.1f;
-                float expectedSignal   = tick * 0.2f;
+                float expectedSignal = tick * 0.2f;
                 Assert.AreEqual(expectedPressure, at.GetField("sim").GetLogAmp("earth", "pressure"), 1e-5f,
                     $"earth pressure at tick {tick}");
                 if (tick == 0)
@@ -363,12 +363,12 @@ namespace Odengine.Tests.Snapshots
             // Economy
             var economy = new EconomySystem(dim, P("ep"));
             economy.InjectTrade("earth", "water", 20f);
-            economy.InjectTrade("mars",  "ore",   10f);
+            economy.InjectTrade("mars", "ore", 10f);
 
             // Faction
             var factions = new FactionSystem(dim, P("fp"), P("fi"), P("fs"));
             factions.AddPresence("earth", "faction_red", 2.0f);
-            factions.AddPresence("mars",  "faction_blue", 1.5f);
+            factions.AddPresence("mars", "faction_blue", 1.5f);
 
             // Checkpoint — only WarSystem has a blob; others are field-only
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 10, 10.0,
@@ -376,10 +376,10 @@ namespace Odengine.Tests.Snapshots
 
             // Restore
             var dim2 = BuildWorld2();
-            var snap  = new SnapshotReader().Read(bytes);
+            var snap = new SnapshotReader().Read(bytes);
             snap.RestoreFields(dim2);
 
-            var war2     = new WarSystem(dim2, P("war"));
+            var war2 = new WarSystem(dim2, P("war"));
             var economy2 = new EconomySystem(dim2, P("ep"));
             var factions2 = new FactionSystem(dim2, P("fp"), P("fi"), P("fs"));
             snap.RestoreSystem(war2);
@@ -398,7 +398,7 @@ namespace Odengine.Tests.Snapshots
                 "Availability logAmp must be negative after trade injection (supply erodes availability)");
 
             // Faction assertions
-            Assert.AreEqual("faction_red",  factions2.GetDominantFaction("earth"));
+            Assert.AreEqual("faction_red", factions2.GetDominantFaction("earth"));
             Assert.AreEqual("faction_blue", factions2.GetDominantFaction("mars"));
         }
 

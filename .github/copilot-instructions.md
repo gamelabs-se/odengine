@@ -90,10 +90,10 @@ Odengine has a **custom binary snapshot system** (magic `ODSN`, little-endian). 
 
 **Three snapshot types (`SnapshotType` enum):**
 
-| Type | Purpose |
-| --- | --- |
-| `Full` | Complete field state, self-contained, no system blobs. Use for per-tick recording. |
-| `Delta` | Sparse diff against a parent Full. Sentinel `logAmp = 0.0f` marks removed entries. |
+| Type         | Purpose                                                                             |
+| ------------ | ----------------------------------------------------------------------------------- |
+| `Full`       | Complete field state, self-contained, no system blobs. Use for per-tick recording.  |
+| `Delta`      | Sparse diff against a parent Full. Sentinel `logAmp = 0.0f` marks removed entries.  |
 | `Checkpoint` | Full + system blobs for every `ISnapshotParticipant`. Required for load-and-resume. |
 
 **String pool** — all `fieldId`, `nodeId`, `channelId`, tag, and system-ID strings are interned into one Ordinal-sorted pool, written once per snapshot. This makes output byte-identical for identical state.
@@ -102,7 +102,7 @@ Odengine has a **custom binary snapshot system** (magic `ODSN`, little-endian). 
 
 **`DeltaIndex`** — records which `(fieldId, nodeId, channelId)` entries changed at each tick tick, enabling postmortem tools to seek without full replay.
 
-**Critical `BuildPool` rule** — `SnapshotWriter.BuildPool` must include strings from **both** the current active entries *and* the `previousEntries` dictionary. Removed entries' node/channel IDs disappear from the active map but are still referenced when writing sentinel-zero delta entries. Missing pool entries cause `KeyNotFoundException` at write time.
+**Critical `BuildPool` rule** — `SnapshotWriter.BuildPool` must include strings from **both** the current active entries _and_ the `previousEntries` dictionary. Removed entries' node/channel IDs disappear from the active map but are still referenced when writing sentinel-zero delta entries. Missing pool entries cause `KeyNotFoundException` at write time.
 
 **`EconomySystem.Availability` logAmp is negative after `InjectTrade`** — `InjectTrade` calls `Availability.AddLogAmp(node, item, -availK * units)`. The negative sign is intentional: supply is consumed, pushing availability below neutral. Assert `Less(logAmp, 0f)`, not `Greater`.
 
@@ -163,31 +163,31 @@ Tests/Snapshots/           Snapshot_CoreTests.cs         — Full/Delta/Checkpoi
 
 ## Key File Map
 
-| File                                                                        | Role                                                  |
-| --------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `Assets/Scripts/Odengine/Core/Dimension.cs`                                 | Top-level container                                   |
-| `Assets/Scripts/Odengine/Fields/ScalarField.cs`                             | Log-space field storage                               |
-| `Assets/Scripts/Odengine/Fields/FieldProfile.cs`                            | Per-field behaviour config (plain data class)         |
-| `Assets/Scripts/Odengine/Fields/Propagator.cs`                              | Deterministic double-buffered propagation             |
-| `Assets/Scripts/Odengine/Fields/ChannelView.cs`                             | Single-channel facade                                 |
-| `Assets/Scripts/Odengine/Graph/NodeGraph.cs`                                | Sorted graph topology                                 |
-| `Assets/Scripts/Odengine/Economy/EconomySystem.cs`                          | Reference domain system                               |
-| `Assets/Scripts/Odengine/War/WarSystem.cs`                                  | War domain system + `ISnapshotParticipant`            |
-| `Assets/Scripts/Odengine/Faction/FactionSystem.cs`                          | Faction domain system                                 |
-| `Assets/Scripts/Odengine/Serialization/SnapshotWriter.cs`                   | Binary snapshot writer (`ODSN` format)                |
-| `Assets/Scripts/Odengine/Serialization/SnapshotReader.cs`                   | Binary snapshot reader                                |
-| `Assets/Scripts/Odengine/Serialization/ISnapshotParticipant.cs`             | System blob contract                                  |
-| `Assets/Scripts/Odengine/Serialization/DeltaIndex.cs`                       | Per-tick change index for postmortem seeks            |
-| `Assets/Scripts/Odengine/Serialization/SnapshotHeader.cs`                   | Snapshot metadata (tick, type, schema version)        |
-| `Assets/Scripts/Odengine/Serialization/SnapshotConfig.cs`                   | Writer/reader configuration                           |
-| `Assets/Scripts/Tests/Tests/FieldPropagationTests.cs`                       | Propagation + determinism patterns                    |
-| `Assets/Scripts/Tests/Tests/EconomyTests.cs`                                | Domain + scenario test patterns                       |
-| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_CoreTests.cs`                | Full/Delta/Checkpoint binary round-trip               |
-| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_SystemTests.cs`              | WarSystem blob + FactionSystem PostLoad               |
-| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_IntegrationTests.cs`         | Multi-system checkpoint + resume workflows            |
-| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_DeterminismTests.cs`         | Byte-identical output + fuzz + 500-tick scenario      |
-| `Docs/Appendices/`                                                           | Detailed design decisions — read before major changes |
-| `Docs/serialization-design.md`                                               | Serialization design (describes FlatBuffers plan; actual impl is custom binary) |
+| File                                                                | Role                                                                            |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `Assets/Scripts/Odengine/Core/Dimension.cs`                         | Top-level container                                                             |
+| `Assets/Scripts/Odengine/Fields/ScalarField.cs`                     | Log-space field storage                                                         |
+| `Assets/Scripts/Odengine/Fields/FieldProfile.cs`                    | Per-field behaviour config (plain data class)                                   |
+| `Assets/Scripts/Odengine/Fields/Propagator.cs`                      | Deterministic double-buffered propagation                                       |
+| `Assets/Scripts/Odengine/Fields/ChannelView.cs`                     | Single-channel facade                                                           |
+| `Assets/Scripts/Odengine/Graph/NodeGraph.cs`                        | Sorted graph topology                                                           |
+| `Assets/Scripts/Odengine/Economy/EconomySystem.cs`                  | Reference domain system                                                         |
+| `Assets/Scripts/Odengine/War/WarSystem.cs`                          | War domain system + `ISnapshotParticipant`                                      |
+| `Assets/Scripts/Odengine/Faction/FactionSystem.cs`                  | Faction domain system                                                           |
+| `Assets/Scripts/Odengine/Serialization/SnapshotWriter.cs`           | Binary snapshot writer (`ODSN` format)                                          |
+| `Assets/Scripts/Odengine/Serialization/SnapshotReader.cs`           | Binary snapshot reader                                                          |
+| `Assets/Scripts/Odengine/Serialization/ISnapshotParticipant.cs`     | System blob contract                                                            |
+| `Assets/Scripts/Odengine/Serialization/DeltaIndex.cs`               | Per-tick change index for postmortem seeks                                      |
+| `Assets/Scripts/Odengine/Serialization/SnapshotHeader.cs`           | Snapshot metadata (tick, type, schema version)                                  |
+| `Assets/Scripts/Odengine/Serialization/SnapshotConfig.cs`           | Writer/reader configuration                                                     |
+| `Assets/Scripts/Tests/Tests/FieldPropagationTests.cs`               | Propagation + determinism patterns                                              |
+| `Assets/Scripts/Tests/Tests/EconomyTests.cs`                        | Domain + scenario test patterns                                                 |
+| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_CoreTests.cs`        | Full/Delta/Checkpoint binary round-trip                                         |
+| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_SystemTests.cs`      | WarSystem blob + FactionSystem PostLoad                                         |
+| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_IntegrationTests.cs` | Multi-system checkpoint + resume workflows                                      |
+| `Assets/Scripts/Tests/Tests/Snapshots/Snapshot_DeterminismTests.cs` | Byte-identical output + fuzz + 500-tick scenario                                |
+| `Docs/Appendices/`                                                  | Detailed design decisions — read before major changes                           |
+| `Docs/serialization-design.md`                                      | Serialization design (describes FlatBuffers plan; actual impl is custom binary) |
 
 ## What NOT to Migrate from luna-odyssea
 

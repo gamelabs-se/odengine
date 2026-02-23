@@ -25,11 +25,11 @@ Dimension                          ← top-level container; zero Unity dependenc
 
 **Domain systems** are thin wrappers that own one or more named `ScalarField`s and expose domain-meaningful APIs on top of raw field operations.
 
-| System | Fields | Extra non-field state |
-|---|---|---|
-| `EconomySystem` | `economy.availability`, `economy.pricePressure` | None |
-| `WarSystem` | `war.exposure` | `_activeWarNodes`, `_coolingNodes`, `_stability`, `_occupations` |
-| `FactionSystem` | `faction.presence`, `faction.influence`, `faction.stability` | `_lastDominant` (reconstructable) |
+| System          | Fields                                                       | Extra non-field state                                            |
+| --------------- | ------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `EconomySystem` | `economy.availability`, `economy.pricePressure`              | None                                                             |
+| `WarSystem`     | `war.exposure`                                               | `_activeWarNodes`, `_coolingNodes`, `_stability`, `_occupations` |
+| `FactionSystem` | `faction.presence`, `faction.influence`, `faction.stability` | `_lastDominant` (reconstructable)                                |
 
 ## Log-Space Storage
 
@@ -92,11 +92,11 @@ Transport constraints (logistics) are modelled entirely through edge resistance 
 
 Odengine has a **custom binary snapshot system** (`ODSN` magic, little-endian) supporting three snapshot types:
 
-| Type | Purpose |
-|---|---|
-| `Full` | Complete field state, self-contained, no system blobs. Use for per-tick recording. |
-| `Delta` | Sparse diff against a parent Full. Only changed entries written; sentinel `logAmp = 0` marks removed entries. |
-| `Checkpoint` | Full + system blobs for all `ISnapshotParticipant` systems. Required for load-and-resume. |
+| Type         | Purpose                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------- |
+| `Full`       | Complete field state, self-contained, no system blobs. Use for per-tick recording.                            |
+| `Delta`      | Sparse diff against a parent Full. Only changed entries written; sentinel `logAmp = 0` marks removed entries. |
+| `Checkpoint` | Full + system blobs for all `ISnapshotParticipant` systems. Required for load-and-resume.                     |
 
 **String pool** — all `fieldId`, `nodeId`, `channelId`, tag, and system-ID strings are interned into an Ordinal-sorted pool written once per snapshot. This makes output byte-identical for identical state.
 
@@ -131,6 +131,7 @@ Tests/Snapshots/           Binary round-trip (Full, Delta, Checkpoint, DeltaInde
 **Branch**: `feature/serialization`
 
 **Complete:**
+
 - `NodeGraph` + `ScalarField` + `Propagator` — core field layer
 - `EconomySystem`, `WarSystem`, `FactionSystem` — domain systems
 - Binary snapshot system — Full, Delta, Checkpoint, DeltaIndex
@@ -138,6 +139,7 @@ Tests/Snapshots/           Binary round-trip (Full, Delta, Checkpoint, DeltaInde
 - Full test suite: core, domain, integration, determinism, fuzz, scenarios, snapshots
 
 **Planned:**
+
 - `CouplingRule` — declarative cross-field coupling (after test suite is solid)
 - Combat system
 - Postmortem replay tooling (game layer concern)

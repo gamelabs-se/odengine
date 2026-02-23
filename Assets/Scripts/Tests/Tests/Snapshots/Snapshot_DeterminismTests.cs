@@ -229,14 +229,14 @@ namespace Odengine.Tests.Snapshots
             var full1 = new SnapshotWriter().WriteFull(dim1, 0, 0);
             // Now add both entries (aaa first, then zzz)
             dim1.GetField("f").SetLogAmp("aaa", "alpha", 1f);
-            dim1.GetField("f").SetLogAmp("zzz", "beta",  2f);
+            dim1.GetField("f").SetLogAmp("zzz", "beta", 2f);
 
             var dim2 = new Dimension();
             dim2.AddNode("aaa"); dim2.AddNode("zzz");
             dim2.AddField("f", P()); // empty field — same previous state
             var full2 = new SnapshotWriter().WriteFull(dim2, 0, 0);
             // Add in opposite order (zzz first, then aaa)
-            dim2.GetField("f").SetLogAmp("zzz", "beta",  2f);
+            dim2.GetField("f").SetLogAmp("zzz", "beta", 2f);
             dim2.GetField("f").SetLogAmp("aaa", "alpha", 1f);
 
             var d1 = StripTimestamp(new SnapshotWriter().WriteDelta(dim1, full1, 1, 1.0, 0, 1));
