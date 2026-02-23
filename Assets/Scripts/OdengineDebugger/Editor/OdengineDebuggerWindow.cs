@@ -172,7 +172,6 @@ namespace OdengineDebugger.Editor
                 foreach (var fieldId in dim.Fields.Keys.OrderBy(k => k, StringComparer.Ordinal))
                 {
                     bool selected = fieldId == _selectedFieldId;
-                    var  bg       = new Rect(0, GUILayoutUtility.GetLastRect().yMax, rect.width, 20f);
 
                     var style = new GUIStyle(EditorStyles.label)
                     {
@@ -180,15 +179,21 @@ namespace OdengineDebugger.Editor
                         normal  = { textColor = selected ? new Color(1f, 0.75f, 0.28f) : Color.white }
                     };
 
-                    if (selected)
-                        EditorGUI.DrawRect(bg, new Color(0.22f, 0.24f, 0.28f));
+                    // Reserve the row rect first via a layout event-safe approach,
+                    // then draw the highlight behind the button text.
+                    var rowRect = GUILayoutUtility.GetRect(
+                        new GUIContent(fieldId), style,
+                        GUILayout.ExpandWidth(true), GUILayout.Height(20f));
 
-                    if (GUILayout.Button(fieldId, style))
+                    if (selected && Event.current.type == EventType.Repaint)
+                        EditorGUI.DrawRect(rowRect, new Color(0.22f, 0.24f, 0.28f));
+
+                    if (GUI.Button(rowRect, fieldId, style))
                     {
                         if (_selectedFieldId != fieldId)
                         {
                             _selectedFieldId = fieldId;
-                            DestroyHeatMapTex(); // force rebuild for new field
+                            DestroyHeatMapTex();
                         }
                     }
                 }
