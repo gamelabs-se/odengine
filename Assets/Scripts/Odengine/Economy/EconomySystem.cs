@@ -13,7 +13,7 @@ namespace Odengine.Economy
         {
             _dimension = dimension;
             // GetOrCreateField: safe for both fresh start and post-snapshot resume.
-            Availability  = dimension.GetOrCreateField("economy.availability",  profile);
+            Availability = dimension.GetOrCreateField("economy.availability", profile);
             PricePressure = dimension.GetOrCreateField("economy.pricePressure", profile);
         }
 

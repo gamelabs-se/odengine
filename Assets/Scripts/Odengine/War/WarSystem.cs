@@ -293,7 +293,7 @@ namespace Odengine.War
         public byte[] SerializeSystemState()
         {
             using var ms = new MemoryStream();
-            using var w  = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: false);
+            using var w = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: false);
 
             w.Write((byte)1); // blob version
 
@@ -342,7 +342,7 @@ namespace Odengine.War
         public void DeserializeSystemState(byte[] payload, int blobSchemaVersion)
         {
             using var ms = new MemoryStream(payload, writable: false);
-            using var r  = new BinaryReader(ms, Encoding.UTF8, leaveOpen: false);
+            using var r = new BinaryReader(ms, Encoding.UTF8, leaveOpen: false);
 
             byte version = r.ReadByte();
             if (version != 1)
@@ -350,12 +350,12 @@ namespace Odengine.War
                     $"WarSystem blob version {version} is not supported by this build.");
 
             // Restore WarConfig (overwrites whatever was passed to constructor)
-            _config.ExposureGrowthRate        = r.ReadSingle();
-            _config.AmbientDecayRate          = r.ReadSingle();
-            _config.CeasefireDecayRate        = r.ReadSingle();
-            _config.ExposureEpsilon           = r.ReadSingle();
-            _config.ExposureChannelId         = ReadBlobStr(r);
-            _config.OccupationBaseRate        = r.ReadSingle();
+            _config.ExposureGrowthRate = r.ReadSingle();
+            _config.AmbientDecayRate = r.ReadSingle();
+            _config.CeasefireDecayRate = r.ReadSingle();
+            _config.ExposureEpsilon = r.ReadSingle();
+            _config.ExposureChannelId = ReadBlobStr(r);
+            _config.OccupationBaseRate = r.ReadSingle();
             _config.OccupationStabilityResist = r.ReadSingle();
 
             int activeCount = r.ReadInt32();
@@ -374,9 +374,9 @@ namespace Odengine.War
             _occupations.Clear();
             for (int i = 0; i < occCount; i++)
             {
-                string nodeId     = ReadBlobStr(r);
+                string nodeId = ReadBlobStr(r);
                 string attackerId = ReadBlobStr(r);
-                float  progress   = r.ReadSingle();
+                float progress = r.ReadSingle();
                 _occupations[nodeId] = (attackerId, progress);
             }
         }
@@ -392,5 +392,6 @@ namespace Odengine.War
         {
             int len = r.ReadInt32();
             return len == 0 ? string.Empty : Encoding.UTF8.GetString(r.ReadBytes(len));
-        }    }
+        }
+    }
 }

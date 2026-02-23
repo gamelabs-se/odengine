@@ -23,7 +23,7 @@ namespace Odengine.Tests.Snapshots
         {
             var d = new Dimension();
             d.AddNode("earth", "Earth");
-            d.AddNode("mars",  "Mars");
+            d.AddNode("mars", "Mars");
             d.AddEdge("earth", "mars", 0.5f);
             return d;
         }
@@ -34,7 +34,7 @@ namespace Odengine.Tests.Snapshots
             Dimension dim, params ISnapshotParticipant[] participants)
         {
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 1, 0, participants);
-            var dim2  = new Dimension();
+            var dim2 = new Dimension();
             dim2.AddNode("earth"); dim2.AddNode("mars");
             dim2.AddEdge("earth", "mars", 0.5f);
             return (new SnapshotReader().Read(bytes), dim2);
@@ -54,9 +54,9 @@ namespace Odengine.Tests.Snapshots
         [Test]
         public void WarSystem_Config_ExposureGrowthRate_RoundTrip()
         {
-            var dim  = TwoNodeDim();
-            var cfg  = new WarConfig { ExposureGrowthRate = 0.07f };
-            var war  = new WarSystem(dim, P(), cfg);
+            var dim = TwoNodeDim();
+            var cfg = new WarConfig { ExposureGrowthRate = 0.07f };
+            var war = new WarSystem(dim, P(), cfg);
 
             var (snap, dim2) = Checkpoint(dim, war);
             var war2 = new WarSystem(dim2, P());
@@ -130,7 +130,7 @@ namespace Odengine.Tests.Snapshots
             snap.RestoreSystem(war2);
 
             Assert.IsTrue(war2.IsAtWar("earth"), "earth must remain in active-war set");
-            Assert.IsTrue(war2.IsAtWar("mars"),  "mars must remain in active-war set");
+            Assert.IsTrue(war2.IsAtWar("mars"), "mars must remain in active-war set");
             Assert.IsFalse(war2.IsAtWar("belt"), "undeclared node must not be at war");
         }
 
@@ -149,8 +149,8 @@ namespace Odengine.Tests.Snapshots
             var war2 = new WarSystem(dim2, P());
             snap.RestoreSystem(war2);
 
-            Assert.IsTrue(war2.IsCooling("earth"),   "cooling state must be restored");
-            Assert.IsFalse(war2.IsAtWar("earth"),    "ceasefire node must not be active-war");
+            Assert.IsTrue(war2.IsCooling("earth"), "cooling state must be restored");
+            Assert.IsFalse(war2.IsAtWar("earth"), "ceasefire node must not be active-war");
         }
 
         [Test]
@@ -159,15 +159,15 @@ namespace Odengine.Tests.Snapshots
             var dim = TwoNodeDim();
             var war = new WarSystem(dim, P());
             war.SetNodeStability("earth", 0.75f);
-            war.SetNodeStability("mars",  0.25f);
+            war.SetNodeStability("mars", 0.25f);
 
             var (snap, dim2) = Checkpoint(dim, war);
             var war2 = new WarSystem(dim2, P());
             snap.RestoreSystem(war2);
 
             Assert.AreEqual(0.75f, war2.GetNodeStability("earth"), 1e-6f);
-            Assert.AreEqual(0.25f, war2.GetNodeStability("mars"),  1e-6f);
-            Assert.AreEqual(0f,    war2.GetNodeStability("belt"),  1e-6f, "Unset node defaults to 0");
+            Assert.AreEqual(0.25f, war2.GetNodeStability("mars"), 1e-6f);
+            Assert.AreEqual(0f, war2.GetNodeStability("belt"), 1e-6f, "Unset node defaults to 0");
         }
 
         [Test]
@@ -187,7 +187,7 @@ namespace Odengine.Tests.Snapshots
             snap.RestoreFields(dim2);
             snap.RestoreSystem(war2);
 
-            Assert.AreEqual("empire_red",    war2.GetOccupationAttacker("mars"),       "Attacker must be restored");
+            Assert.AreEqual("empire_red", war2.GetOccupationAttacker("mars"), "Attacker must be restored");
             Assert.AreEqual(expectedProgress, war2.GetOccupationProgress("mars"), 1e-5f, "Progress must be restored");
         }
 
@@ -197,7 +197,7 @@ namespace Odengine.Tests.Snapshots
             var dim = TwoNodeDim();
             var war = new WarSystem(dim, P());
             war.DeclareOccupation("earth", "faction_a");
-            war.DeclareOccupation("mars",  "faction_b");
+            war.DeclareOccupation("mars", "faction_b");
 
             var (snap, dim2) = Checkpoint(dim, war);
             var war2 = new WarSystem(dim2, P());
@@ -267,8 +267,8 @@ namespace Odengine.Tests.Snapshots
             var dim = TwoNodeDim();
             var factions = new FactionSystem(dim, P("fp"), P("fi"), P("fs"));
             factions.AddPresence("earth", "empire_red", 2.5f);
-            factions.AddPresence("earth", "rebels",     0.5f);
-            factions.AddPresence("mars",  "empire_red", 1.0f);
+            factions.AddPresence("earth", "rebels", 0.5f);
+            factions.AddPresence("mars", "empire_red", 1.0f);
 
             // Save + restore fields
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 1, 0, new List<ISnapshotParticipant>());
@@ -294,7 +294,7 @@ namespace Odengine.Tests.Snapshots
             var dim = TwoNodeDim();
             var factions = new FactionSystem(dim, P("fp"), P("fi"), P("fs"));
             factions.AddPresence("earth", "empire_red", 2.5f);
-            factions.AddPresence("mars",  "empire_red", 1.5f);
+            factions.AddPresence("mars", "empire_red", 1.5f);
 
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 1, 0, new List<ISnapshotParticipant>());
             var dim2 = TwoNodeDim();
@@ -345,7 +345,7 @@ namespace Odengine.Tests.Snapshots
             var dim = TwoNodeDim();
             var factions = new FactionSystem(dim, P("fp"), P("fi"), P("fs"));
             factions.AddPresence("earth", "empire_red", 2.0f);
-            factions.AddPresence("earth", "rebels",     0.5f); // empire_red dominates
+            factions.AddPresence("earth", "rebels", 0.5f); // empire_red dominates
 
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 1, 0, new List<ISnapshotParticipant>());
             var dim2 = TwoNodeDim();
@@ -422,7 +422,7 @@ namespace Odengine.Tests.Snapshots
             dim.AddField("economy.price", P("ep")).SetLogAmp("earth", "water", 2.5f);
 
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 5, 10.0, new ISnapshotParticipant[] { war });
-            var snap  = new SnapshotReader().Read(bytes);
+            var snap = new SnapshotReader().Read(bytes);
 
             var dim2 = TwoNodeDim();
             var war2 = new WarSystem(dim2, P());
@@ -452,7 +452,7 @@ namespace Odengine.Tests.Snapshots
             war.DeclareWar("earth");
 
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 1, 0, new ISnapshotParticipant[] { war });
-            var snap  = new SnapshotReader().Read(bytes);
+            var snap = new SnapshotReader().Read(bytes);
 
             var dim2 = TwoNodeDim();
             var war2 = new WarSystem(dim2, P());
@@ -471,7 +471,7 @@ namespace Odengine.Tests.Snapshots
             var dim = TwoNodeDim();
             var economy = new EconomySystem(dim, P("ep"));
             economy.Availability.SetLogAmp("earth", "water", 0.8f);
-            economy.PricePressure.SetLogAmp("mars",  "ore",   1.2f);
+            economy.PricePressure.SetLogAmp("mars", "ore", 1.2f);
 
             var bytes = new SnapshotWriter().WriteCheckpoint(dim, 1, 0, new List<ISnapshotParticipant>());
 

@@ -122,7 +122,7 @@ namespace Odengine.Tests.Snapshots
             Assert.IsNotNull(restored.Graph.Nodes["earth"]);
             Assert.IsNotNull(restored.Graph.Nodes["mars"]);
             Assert.AreEqual("Earth", restored.Graph.Nodes["earth"].Name);
-            Assert.AreEqual("Mars",  restored.Graph.Nodes["mars"].Name);
+            Assert.AreEqual("Mars", restored.Graph.Nodes["mars"].Name);
         }
 
         [Test]
@@ -134,7 +134,7 @@ namespace Odengine.Tests.Snapshots
             var edges = restored.Graph.GetOutEdgesSorted("earth");
             Assert.AreEqual(1, edges.Count);
             Assert.AreEqual("mars", edges[0].ToId);
-            Assert.AreEqual(0.5f,   edges[0].Resistance, 1e-6f);
+            Assert.AreEqual(0.5f, edges[0].Resistance, 1e-6f);
         }
 
         [Test]
@@ -218,13 +218,13 @@ namespace Odengine.Tests.Snapshots
         {
             var dim = TwoNodeDim();
             var f = dim.AddField("economy.price", P("econ"));
-            f.SetLogAmp("earth", "water",  1.5f);
-            f.SetLogAmp("mars",  "ore",   -0.7f);
+            f.SetLogAmp("earth", "water", 1.5f);
+            f.SetLogAmp("mars", "ore", -0.7f);
 
             var restored = R().Read(W().WriteFull(dim, 1, 0)).ReconstructDimension();
             var rf = restored.GetField("economy.price");
-            Assert.AreEqual( 1.5f, rf.GetLogAmp("earth", "water"), 1e-6f);
-            Assert.AreEqual(-0.7f, rf.GetLogAmp("mars",  "ore"),   1e-6f);
+            Assert.AreEqual(1.5f, rf.GetLogAmp("earth", "water"), 1e-6f);
+            Assert.AreEqual(-0.7f, rf.GetLogAmp("mars", "ore"), 1e-6f);
         }
 
         [Test]
@@ -239,7 +239,7 @@ namespace Odengine.Tests.Snapshots
             var rf = restored.GetField("f");
 
             Assert.AreEqual(0.5f, rf.GetLogAmp("earth", "water"), 1e-6f, "Active entry preserved");
-            Assert.AreEqual(0,    rf.GetActiveChannelIdsSortedForNode("mars").Count,
+            Assert.AreEqual(0, rf.GetActiveChannelIdsSortedForNode("mars").Count,
                 "Neutral mars node must have no active channels");
         }
 
@@ -261,12 +261,12 @@ namespace Odengine.Tests.Snapshots
         {
             var profile = new FieldProfile("custom")
             {
-                PropagationRate     = 0.33f,
+                PropagationRate = 0.33f,
                 EdgeResistanceScale = 2.5f,
-                DecayRate           = 0.007f,
-                MinLogAmpClamp      = -15f,
-                MaxLogAmpClamp      = 18f,
-                LogEpsilon          = 0.0005f
+                DecayRate = 0.007f,
+                MinLogAmpClamp = -15f,
+                MaxLogAmpClamp = 18f,
+                LogEpsilon = 0.0005f
             };
             var dim = TwoNodeDim();
             dim.AddField("f", profile).SetLogAmp("earth", "signal", 1.0f);
@@ -274,13 +274,13 @@ namespace Odengine.Tests.Snapshots
             var restored = R().Read(W().WriteFull(dim, 1, 0)).ReconstructDimension();
             var rp = restored.GetField("f").Profile;
 
-            Assert.AreEqual("custom",  rp.ProfileId);
-            Assert.AreEqual(0.33f,     rp.PropagationRate,     1e-6f);
-            Assert.AreEqual(2.5f,      rp.EdgeResistanceScale, 1e-6f);
-            Assert.AreEqual(0.007f,    rp.DecayRate,           1e-6f);
-            Assert.AreEqual(-15f,      rp.MinLogAmpClamp,      1e-6f);
-            Assert.AreEqual(18f,       rp.MaxLogAmpClamp,      1e-6f);
-            Assert.AreEqual(0.0005f,   rp.LogEpsilon,          1e-7f);
+            Assert.AreEqual("custom", rp.ProfileId);
+            Assert.AreEqual(0.33f, rp.PropagationRate, 1e-6f);
+            Assert.AreEqual(2.5f, rp.EdgeResistanceScale, 1e-6f);
+            Assert.AreEqual(0.007f, rp.DecayRate, 1e-6f);
+            Assert.AreEqual(-15f, rp.MinLogAmpClamp, 1e-6f);
+            Assert.AreEqual(18f, rp.MaxLogAmpClamp, 1e-6f);
+            Assert.AreEqual(0.0005f, rp.LogEpsilon, 1e-7f);
         }
 
         [Test]
@@ -291,7 +291,7 @@ namespace Odengine.Tests.Snapshots
             var profile = new FieldProfile("p") { LogEpsilon = 0.0002f };
             var f = dim.AddField("f", profile);
             f.SetLogAmp("earth", "x", 0.00015f); // below epsilon → pruned immediately
-            f.SetLogAmp("mars",  "y", 0.00025f); // above epsilon → stored
+            f.SetLogAmp("mars", "y", 0.00025f); // above epsilon → stored
 
             var snap = R().Read(W().WriteFull(dim, 1, 0));
             // Only mars/y survives
@@ -303,12 +303,12 @@ namespace Odengine.Tests.Snapshots
         public void Field_MultipleFields_AllRoundTrip()
         {
             var dim = TwoNodeDim();
-            dim.AddField("war.exposure",    P("war"))    .SetLogAmp("earth", "x",         2.0f);
-            dim.AddField("faction.presence", P("faction")).SetLogAmp("mars",  "empire_a",  1.5f);
+            dim.AddField("war.exposure", P("war")).SetLogAmp("earth", "x", 2.0f);
+            dim.AddField("faction.presence", P("faction")).SetLogAmp("mars", "empire_a", 1.5f);
 
             var restored = R().Read(W().WriteFull(dim, 1, 0)).ReconstructDimension();
-            Assert.AreEqual(2.0f, restored.GetField("war.exposure")    .GetLogAmp("earth", "x"),        1e-6f);
-            Assert.AreEqual(1.5f, restored.GetField("faction.presence").GetLogAmp("mars",  "empire_a"), 1e-6f);
+            Assert.AreEqual(2.0f, restored.GetField("war.exposure").GetLogAmp("earth", "x"), 1e-6f);
+            Assert.AreEqual(1.5f, restored.GetField("faction.presence").GetLogAmp("mars", "empire_a"), 1e-6f);
         }
 
         [Test]
@@ -373,7 +373,7 @@ namespace Odengine.Tests.Snapshots
             var dim = TwoNodeDim();
             var f = dim.AddField("f", P());
             f.SetLogAmp("earth", "water", 1.0f);
-            f.SetLogAmp("mars",  "ore",   2.0f);
+            f.SetLogAmp("mars", "ore", 2.0f);
             var full = W().WriteFull(dim, 0, 0);
 
             // Only change earth/water; mars/ore is unchanged
@@ -384,7 +384,7 @@ namespace Odengine.Tests.Snapshots
                 "Only the changed entry should appear in the delta record");
             Assert.AreEqual("earth", snap.Fields[0].Entries[0].nodeId);
             Assert.AreEqual("water", snap.Fields[0].Entries[0].channelId);
-            Assert.AreEqual(1.5f,    snap.Fields[0].Entries[0].logAmp, 1e-6f);
+            Assert.AreEqual(1.5f, snap.Fields[0].Entries[0].logAmp, 1e-6f);
         }
 
         [Test]
@@ -424,7 +424,7 @@ namespace Odengine.Tests.Snapshots
             var dim = TwoNodeDim();
             var f = dim.AddField("f", P());
             f.SetLogAmp("earth", "water", 1.0f);
-            f.SetLogAmp("mars",  "ore",   2.0f);
+            f.SetLogAmp("mars", "ore", 2.0f);
             var full = W().WriteFull(dim, 0, 0);
 
             f.SetLogAmp("earth", "water", 1.5f); // changed
@@ -436,7 +436,7 @@ namespace Odengine.Tests.Snapshots
 
             Assert.AreEqual(1.5f, dim1.GetField("f").GetLogAmp("earth", "water"), 1e-5f,
                 "Changed entry must be at new value");
-            Assert.AreEqual(2.0f, dim1.GetField("f").GetLogAmp("mars",  "ore"),   1e-5f,
+            Assert.AreEqual(2.0f, dim1.GetField("f").GetLogAmp("mars", "ore"), 1e-5f,
                 "Unchanged entry must be preserved from base");
         }
 
@@ -446,7 +446,7 @@ namespace Odengine.Tests.Snapshots
             var dim = TwoNodeDim();
             var f = dim.AddField("f", P());
             f.SetLogAmp("earth", "water", 1.0f);
-            f.SetLogAmp("mars",  "ore",   2.0f);
+            f.SetLogAmp("mars", "ore", 2.0f);
             var full = W().WriteFull(dim, 0, 0);
 
             f.SetLogAmp("mars", "ore", 0f); // remove
@@ -471,13 +471,13 @@ namespace Odengine.Tests.Snapshots
 
             // Tick 1: pressure → 2.0, add mars/signal 0.5
             f.SetLogAmp("earth", "pressure", 2.0f);
-            f.SetLogAmp("mars",  "signal",   0.5f);
+            f.SetLogAmp("mars", "signal", 0.5f);
             var d1 = W().WriteDelta(dim, prev, 1, 1.0, 0, 1);
             series.Add(d1); prev = d1;
 
             // Tick 2: pressure → 3.0, signal removed
             f.SetLogAmp("earth", "pressure", 3.0f);
-            f.SetLogAmp("mars",  "signal",   0f);
+            f.SetLogAmp("mars", "signal", 0f);
             var d2 = W().WriteDelta(dim, prev, 2, 2.0, 1, 2);
             series.Add(d2); prev = d2;
 
@@ -490,11 +490,11 @@ namespace Odengine.Tests.Snapshots
 
             var at1 = reader.ReadAtTick(series, 1).ReconstructDimension();
             Assert.AreEqual(2.0f, at1.GetField("f").GetLogAmp("earth", "pressure"), 1e-5f);
-            Assert.AreEqual(0.5f, at1.GetField("f").GetLogAmp("mars",  "signal"),   1e-5f);
+            Assert.AreEqual(0.5f, at1.GetField("f").GetLogAmp("mars", "signal"), 1e-5f);
 
             var at2 = reader.ReadAtTick(series, 2).ReconstructDimension();
             Assert.AreEqual(3.0f, at2.GetField("f").GetLogAmp("earth", "pressure"), 1e-5f);
-            Assert.AreEqual(0f,   at2.GetField("f").GetLogAmp("mars",  "signal"),   1e-9f);
+            Assert.AreEqual(0f, at2.GetField("f").GetLogAmp("mars", "signal"), 1e-9f);
 
             var at3 = reader.ReadAtTick(series, 3).ReconstructDimension();
             Assert.AreEqual(4.0f, at3.GetField("f").GetLogAmp("earth", "pressure"), 1e-5f);
@@ -588,9 +588,9 @@ namespace Odengine.Tests.Snapshots
         public void DeltaIndex_Append_IncreasesCount()
         {
             var idx = new DeltaIndex();
-            idx.Append(0, SnapshotType.Full,  0, 500);
-            idx.Append(1, SnapshotType.Delta, 500,  20);
-            idx.Append(2, SnapshotType.Delta, 520,  15);
+            idx.Append(0, SnapshotType.Full, 0, 500);
+            idx.Append(1, SnapshotType.Delta, 500, 20);
+            idx.Append(2, SnapshotType.Delta, 520, 15);
             Assert.AreEqual(3, idx.Count);
         }
 
@@ -604,7 +604,7 @@ namespace Odengine.Tests.Snapshots
         public void DeltaIndex_LastTick_ReturnsLastAppended()
         {
             var idx = new DeltaIndex();
-            idx.Append(5,  SnapshotType.Full,  0, 100);
+            idx.Append(5, SnapshotType.Full, 0, 100);
             idx.Append(10, SnapshotType.Delta, 100, 20);
             Assert.AreEqual(10UL, idx.LastTick);
         }
@@ -613,11 +613,11 @@ namespace Odengine.Tests.Snapshots
         public void DeltaIndex_FindFullBefore_ReturnsLastFullAtOrBefore()
         {
             var idx = new DeltaIndex();
-            idx.Append(0,  SnapshotType.Full,    0,   500);
-            idx.Append(1,  SnapshotType.Delta, 500,    20);
-            idx.Append(5,  SnapshotType.Full,  520,   400);
-            idx.Append(6,  SnapshotType.Delta, 920,    18);
-            idx.Append(10, SnapshotType.Delta, 938,    22);
+            idx.Append(0, SnapshotType.Full, 0, 500);
+            idx.Append(1, SnapshotType.Delta, 500, 20);
+            idx.Append(5, SnapshotType.Full, 520, 400);
+            idx.Append(6, SnapshotType.Delta, 920, 18);
+            idx.Append(10, SnapshotType.Delta, 938, 22);
 
             // At tick 4 → should find the Full at tick 0 (tick 5 Full is after 4)
             var r0 = idx.FindFullBefore(4);
@@ -653,11 +653,11 @@ namespace Odengine.Tests.Snapshots
         public void DeltaIndex_FindDeltaRange_ReturnsInRange()
         {
             var idx = new DeltaIndex();
-            idx.Append(0, SnapshotType.Full,    0, 500);
-            idx.Append(1, SnapshotType.Delta, 500,  20);
-            idx.Append(2, SnapshotType.Delta, 520,  15);
-            idx.Append(3, SnapshotType.Delta, 535,  12);
-            idx.Append(5, SnapshotType.Full,  547, 400);
+            idx.Append(0, SnapshotType.Full, 0, 500);
+            idx.Append(1, SnapshotType.Delta, 500, 20);
+            idx.Append(2, SnapshotType.Delta, 520, 15);
+            idx.Append(3, SnapshotType.Delta, 535, 12);
+            idx.Append(5, SnapshotType.Full, 547, 400);
 
             var deltas = idx.FindDeltaRange(afterTick: 0, upToTick: 2);
             Assert.AreEqual(2, deltas.Count);
@@ -669,10 +669,10 @@ namespace Odengine.Tests.Snapshots
         public void DeltaIndex_FindDeltaRange_SkipsFullSnapshots()
         {
             var idx = new DeltaIndex();
-            idx.Append(0, SnapshotType.Full,  0, 500);
+            idx.Append(0, SnapshotType.Full, 0, 500);
             idx.Append(1, SnapshotType.Delta, 500, 20);
-            idx.Append(2, SnapshotType.Full,  520, 400); // Full in the middle — must be skipped
-            idx.Append(3, SnapshotType.Delta, 920,  15);
+            idx.Append(2, SnapshotType.Full, 520, 400); // Full in the middle — must be skipped
+            idx.Append(3, SnapshotType.Delta, 920, 15);
 
             var deltas = idx.FindDeltaRange(0, 3);
             Assert.AreEqual(2, deltas.Count, "Full snapshots must be excluded from delta range");
@@ -684,7 +684,7 @@ namespace Odengine.Tests.Snapshots
         public void DeltaIndex_FindDeltaRange_NoDeltas_Empty()
         {
             var idx = new DeltaIndex();
-            idx.Append(0,  SnapshotType.Full, 0, 500);
+            idx.Append(0, SnapshotType.Full, 0, 500);
             idx.Append(10, SnapshotType.Full, 500, 400);
             Assert.AreEqual(0, idx.FindDeltaRange(0, 9).Count);
         }
@@ -693,9 +693,9 @@ namespace Odengine.Tests.Snapshots
         public void DeltaIndex_CheckpointCountsAsFullBefore()
         {
             var idx = new DeltaIndex();
-            idx.Append(0,  SnapshotType.Full,       0, 500);
-            idx.Append(5,  SnapshotType.Checkpoint, 500, 900);
-            idx.Append(6,  SnapshotType.Delta,     1400,  20);
+            idx.Append(0, SnapshotType.Full, 0, 500);
+            idx.Append(5, SnapshotType.Checkpoint, 500, 900);
+            idx.Append(6, SnapshotType.Delta, 1400, 20);
 
             var r = idx.FindFullBefore(7);
             Assert.IsNotNull(r);
@@ -706,9 +706,9 @@ namespace Odengine.Tests.Snapshots
         public void DeltaIndex_SaveLoad_ExactRoundTrip()
         {
             var idx = new DeltaIndex();
-            idx.Append(0,  SnapshotType.Full,        0, 1000);
-            idx.Append(1,  SnapshotType.Delta,    1000,   50);
-            idx.Append(2,  SnapshotType.Delta,    1050,   45);
+            idx.Append(0, SnapshotType.Full, 0, 1000);
+            idx.Append(1, SnapshotType.Delta, 1000, 50);
+            idx.Append(2, SnapshotType.Delta, 1050, 45);
             idx.Append(10, SnapshotType.Checkpoint, 1095, 900);
 
             byte[] indexBytes;

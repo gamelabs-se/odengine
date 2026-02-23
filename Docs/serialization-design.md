@@ -413,8 +413,6 @@ cause silent divergence — treat those constants as frozen until the config str
 
 ---
 
-
-
 ```csharp
 // Assets/Scripts/Odengine/Serialization/ISnapshotParticipant.cs
 namespace Odengine.Serialization

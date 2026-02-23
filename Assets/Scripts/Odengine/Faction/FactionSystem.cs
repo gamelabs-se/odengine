@@ -93,7 +93,7 @@ namespace Odengine.Faction
             // GetOrCreateField: safe for both fresh start and post-snapshot resume.
             // On resume, RestoreFields runs first and creates the field with the saved profile;
             // subsequent GetOrCreateField calls return the existing field unchanged.
-            Presence  = dimension.GetOrCreateField("faction.presence",  presenceProfile  ?? throw new ArgumentNullException(nameof(presenceProfile)));
+            Presence = dimension.GetOrCreateField("faction.presence", presenceProfile ?? throw new ArgumentNullException(nameof(presenceProfile)));
             Influence = dimension.GetOrCreateField("faction.influence", influenceProfile ?? throw new ArgumentNullException(nameof(influenceProfile)));
             Stability = dimension.GetOrCreateField("faction.stability", stabilityProfile ?? throw new ArgumentNullException(nameof(stabilityProfile)));
         }

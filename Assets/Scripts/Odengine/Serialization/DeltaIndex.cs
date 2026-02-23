@@ -26,10 +26,10 @@ namespace Odengine.Serialization
 
         private struct Entry
         {
-            public ulong        Tick;
+            public ulong Tick;
             public SnapshotType Type;
-            public long         ByteOffset;
-            public int          ByteLength;
+            public long ByteOffset;
+            public int ByteLength;
         }
 
         public int Count => _entries.Count;
@@ -98,8 +98,8 @@ namespace Odengine.Serialization
             for (int i = 0; i < count; i++)
                 idx._entries.Add(new Entry
                 {
-                    Tick       = r.ReadUInt64(),
-                    Type       = (SnapshotType)r.ReadByte(),
+                    Tick = r.ReadUInt64(),
+                    Type = (SnapshotType)r.ReadByte(),
                     ByteOffset = r.ReadInt64(),
                     ByteLength = r.ReadInt32()
                 });

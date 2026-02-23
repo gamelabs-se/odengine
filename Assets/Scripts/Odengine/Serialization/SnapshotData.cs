@@ -16,15 +16,15 @@ namespace Odengine.Serialization
 
     internal struct GraphEdgeRecord
     {
-        public string   FromId;
-        public string   ToId;
-        public float    Resistance;
+        public string FromId;
+        public string ToId;
+        public float Resistance;
         public string[] Tags;
     }
 
     internal struct FieldRecord
     {
-        public string  FieldId;
+        public string FieldId;
         public FieldProfile Profile;
         /// <summary>
         /// For Full/Checkpoint: all active entries.
@@ -51,22 +51,22 @@ namespace Odengine.Serialization
     {
         public SnapshotHeader Header { get; }
 
-        internal GraphNodeRecord[]  Nodes       { get; }
-        internal GraphEdgeRecord[]  Edges       { get; }
-        internal FieldRecord[]      Fields      { get; }
+        internal GraphNodeRecord[] Nodes { get; }
+        internal GraphEdgeRecord[] Edges { get; }
+        internal FieldRecord[] Fields { get; }
         internal SystemBlobRecord[] SystemBlobs { get; }
 
         internal SnapshotData(
             SnapshotHeader header,
-            GraphNodeRecord[]  nodes,
-            GraphEdgeRecord[]  edges,
-            FieldRecord[]      fields,
+            GraphNodeRecord[] nodes,
+            GraphEdgeRecord[] edges,
+            FieldRecord[] fields,
             SystemBlobRecord[] systemBlobs)
         {
-            Header      = header;
-            Nodes       = nodes       ?? Array.Empty<GraphNodeRecord>();
-            Edges       = edges       ?? Array.Empty<GraphEdgeRecord>();
-            Fields      = fields      ?? Array.Empty<FieldRecord>();
+            Header = header;
+            Nodes = nodes ?? Array.Empty<GraphNodeRecord>();
+            Edges = edges ?? Array.Empty<GraphEdgeRecord>();
+            Fields = fields ?? Array.Empty<FieldRecord>();
             SystemBlobs = systemBlobs ?? Array.Empty<SystemBlobRecord>();
         }
 
