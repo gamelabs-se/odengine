@@ -7,6 +7,7 @@ using Odengine.Coupling;
 using Odengine.Economy;
 using Odengine.Faction;
 using Odengine.Fields;
+using Odengine.Intel;
 using Odengine.War;
 using OdengineDebugger;
 
@@ -37,6 +38,7 @@ public sealed class SimulationRunner : MonoBehaviour
     private WarConfig _warConfig;
     private FactionSystem _factions;
     private CombatSystem _combat;
+    private IntelSystem _intel;
     private List<CouplingRule> _couplingRules;
     private ulong _tick;
 
@@ -200,6 +202,28 @@ public sealed class SimulationRunner : MonoBehaviour
         _combat.CommitForce(North, FactionRed,  1.5f);
         _combat.CommitForce(North, FactionBlue, 1.0f);
 
+        // ── Intel ─────────────────────────────────────────────────────────
+        var intelProfile = new FieldProfile("intel.demo")
+        {
+            PropagationRate     = 0.05f,  // scouts spread awareness to neighbours
+            DecayRate           = 0.06f,  // coverage fades without patrols
+            EdgeResistanceScale = 1f,
+            MinLogAmpClamp      = -5f,
+            MaxLogAmpClamp      =  5f,
+            LogEpsilon          = 0.0001f,
+        };
+        _intel = new IntelSystem(_dim, intelProfile, new IntelConfig
+        {
+            ActiveCoverageThreshold = 0.0001f,
+        });
+
+        // Seed: red covers hub+west+north, blue covers east+south
+        _intel.DeploySensor(Hub,   FactionRed,  2f);
+        _intel.DeploySensor(West,  FactionRed,  1.5f);
+        _intel.DeploySensor(North, FactionRed,  0.8f);
+        _intel.DeploySensor(East,  FactionBlue, 2f);
+        _intel.DeploySensor(South, FactionBlue, 1.5f);
+
         // ── Coupling rules ────────────────────────────────────────────────
         // Cross-system linkage: War/Faction/Combat state feeds back into Economy.
         // All field IDs reference the canonical strings the systems register.
@@ -255,6 +279,24 @@ public sealed class SimulationRunner : MonoBehaviour
                 Operator              = CouplingOperator.Linear(-0.10f),
                 ScaleByDeltaTime      = true,
             },
+
+            // Intel coverage → faction influence (spy network = soft power)
+            new CouplingRule("intel.coverage", "faction.influence")
+            {
+                InputChannelSelector  = "*",
+                OutputChannelSelector = "*",
+                Operator              = CouplingOperator.Linear(0.05f),
+                ScaleByDeltaTime      = true,
+            },
+
+            // Intel coverage → war awareness (sensors detect threats)
+            new CouplingRule("intel.coverage", "war.exposure")
+            {
+                InputChannelSelector  = "*",
+                OutputChannelSelector = $"explicit:[{warCh}]",
+                Operator              = CouplingOperator.Linear(0.03f),
+                ScaleByDeltaTime      = true,
+            },
         };
     }
 
@@ -279,6 +321,7 @@ public sealed class SimulationRunner : MonoBehaviour
         _war.Tick(dt);
         _factions.Tick(dt);
         _combat.Tick(dt);
+        _intel.Tick(dt);
 
         // Cross-system coupling: reads from post-propagation state, writes impulses.
         CouplingProcessor.Step(_dim, _couplingRules, dt);
@@ -336,6 +379,19 @@ public sealed class SimulationRunner : MonoBehaviour
                 _factions.Stability.AddLogAmp(id, FactionRed, -v);
                 _factions.Stability.AddLogAmp(id, FactionBlue, -v);
             });
+
+        // ── Intel ─────────────────────────────────────────────────────────
+        SimulationControls.RegisterNodeSlider("🔍 Intel", "Red Scouts", 0.1f, 2f, 0.5f, "logAmp",
+            (id, v) => _intel.DeploySensor(id, FactionRed, v));
+
+        SimulationControls.RegisterNodeSlider("🔍 Intel", "Blue Scouts", 0.1f, 2f, 0.5f, "logAmp",
+            (id, v) => _intel.DeploySensor(id, FactionBlue, v));
+
+        SimulationControls.RegisterNodeButton("🔍 Intel", "Who's Watching?", "Query",
+            id => Debug.Log(
+                $"[Intel] Observer at {id}: dominant={_intel.GetDominantObserver(id) ?? "none"} " +
+                $"| red={_intel.GetCoverage(id, FactionRed):F3} " +
+                $"| blue={_intel.GetCoverage(id, FactionBlue):F3}"));
 
         // ── Sim ──────────────────────────────────────────────────────────
         SimulationControls.RegisterSlider("⚙ Sim", "Tick Interval", 0.05f, 2f, 0.25f, "s",
