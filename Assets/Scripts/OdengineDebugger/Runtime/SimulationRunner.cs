@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Odengine.Combat;
 using Odengine.Core;
 using Odengine.Coupling;
 using Odengine.Economy;
@@ -35,6 +36,7 @@ public sealed class SimulationRunner : MonoBehaviour
     private WarSystem _war;
     private WarConfig _warConfig;
     private FactionSystem _factions;
+    private CombatSystem _combat;
     private List<CouplingRule> _couplingRules;
     private ulong _tick;
 
@@ -178,8 +180,28 @@ public sealed class SimulationRunner : MonoBehaviour
         _factions.AddPresence(East, FactionBlue, 1.5f);
         _factions.AddPresence(South, FactionBlue, 0.9f);
 
+        // ── Combat ────────────────────────────────────────────────────────
+        var combatProfile = new FieldProfile("combat.demo")
+        {
+            PropagationRate     = 0.02f,  // combat spreads slowly to adjacent nodes
+            DecayRate           = 0.20f,  // dissipates without reinforcement
+            EdgeResistanceScale = 2f,     // high resistance — combat doesn't travel far
+            MinLogAmpClamp      = 0f,     // no negative combat intensity
+            MaxLogAmpClamp      = 8f,
+            LogEpsilon          = 0.0001f,
+        };
+        _combat = new CombatSystem(_dim, combatProfile, new CombatConfig
+        {
+            AttritionRate  = 0.25f,
+            ActiveThreshold = 0.0001f,
+        });
+
+        // Seed an initial engagement: red vs blue at north
+        _combat.CommitForce(North, FactionRed,  1.5f);
+        _combat.CommitForce(North, FactionBlue, 1.0f);
+
         // ── Coupling rules ────────────────────────────────────────────────
-        // Cross-system linkage: War/Faction state feeds back into Economy.
+        // Cross-system linkage: War/Faction/Combat state feeds back into Economy.
         // All field IDs reference the canonical strings the systems register.
         string warCh = _warConfig.ExposureChannelId; // "x" by default
 
@@ -214,6 +236,25 @@ public sealed class SimulationRunner : MonoBehaviour
                 Operator              = CouplingOperator.Linear(0.04f),
                 ScaleByDeltaTime      = true,
             },
+
+            // Combat intensity → war exposure (fighting drives war pressure)
+            new CouplingRule("combat.intensity", "war.exposure")
+            {
+                InputChannelSelector  = "*",
+                OutputChannelSelector = "explicit:[x]",
+                Operator              = CouplingOperator.Linear(0.20f),
+                ScaleByDeltaTime      = true,
+            },
+
+            // Combat intensity → faction presence drops (forces take losses)
+            // Each fighting faction erodes all factions' presence at the node.
+            new CouplingRule("combat.intensity", "faction.presence")
+            {
+                InputChannelSelector  = "*",
+                OutputChannelSelector = "*",
+                Operator              = CouplingOperator.Linear(-0.10f),
+                ScaleByDeltaTime      = true,
+            },
         };
     }
 
@@ -237,6 +278,7 @@ public sealed class SimulationRunner : MonoBehaviour
         Propagator.Step(_dim, _economy.PricePressure, dt);
         _war.Tick(dt);
         _factions.Tick(dt);
+        _combat.Tick(dt);
 
         // Cross-system coupling: reads from post-propagation state, writes impulses.
         CouplingProcessor.Step(_dim, _couplingRules, dt);
@@ -260,6 +302,16 @@ public sealed class SimulationRunner : MonoBehaviour
 
         SimulationControls.RegisterNodeSlider("⚔ War", "Strike", 0.1f, 3f, 0.5f, "logAmp",
             (id, v) => _war.Exposure.AddLogAmp(id, ch, v));
+
+        // ── Combat ────────────────────────────────────────────────────────
+        SimulationControls.RegisterNodeSlider("⚔ Combat", "Red Assault", 0.1f, 3f, 0.5f, "logAmp",
+            (id, v) => _combat.CommitForce(id, FactionRed, v));
+
+        SimulationControls.RegisterNodeSlider("⚔ Combat", "Blue Assault", 0.1f, 3f, 0.5f, "logAmp",
+            (id, v) => _combat.CommitForce(id, FactionBlue, v));
+
+        SimulationControls.RegisterNodeButton("⚔ Combat", "Who's Dominant?", "Query",
+            id => Debug.Log($"[Combat] Dominant at {id}: {_combat.GetDominantFaction(id) ?? "none"} (intensity {_combat.GetIntensity(id):F3})"));
 
         // ── Economy ───────────────────────────────────────────────────────
         SimulationControls.RegisterNodeSlider("💰 Economy", "Surge Ore", 1f, 30f, 5f, "units",
