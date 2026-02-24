@@ -426,20 +426,19 @@ namespace Odengine.Tests.Modules.Combat
         [Test]
         public void MultiTick_EqualFactions_MutualDecay()
         {
-            // Equal forces: both decay at the same rate. After enough ticks,
-            // the field's LogEpsilon pruning removes both.
+            // Equal forces: symmetric attrition halves each faction's logAmp every tick.
+            //   aₙ₊₁ = aₙ - aₙ × 0.5 = 0.5 × aₙ  (geometric decay)
+            // Starting at 1.0, LogEpsilon = 0.0001 → pruned after ~14 ticks (0.5¹⁴ ≈ 6e-5).
             var dim = MakeDimension("north");
             var combat = MakeCombat(dim, attrition: 0.5f, decay: 0f);
             combat.CommitForce("north", "red",  1f);
             combat.CommitForce("north", "blue", 1f);
 
-            // Both take: -1.0 × 0.5 × 1.0 = -0.5 per tick
-            // tick 0 → 0.5, tick 1 → 0.0 (pruned)
-            combat.Tick(1f);
-            combat.Tick(1f);
+            for (int i = 0; i < 15; i++)
+                combat.Tick(1f);
 
-            // Both should be near zero or fully pruned
-            Assert.That(combat.GetActiveNodeIds().Count, Is.EqualTo(0).Or.EqualTo(0));
+            // Both below LogEpsilon → field pruned → no active nodes
+            Assert.That(combat.GetActiveNodeIds().Count, Is.EqualTo(0));
         }
 
         [Test]
