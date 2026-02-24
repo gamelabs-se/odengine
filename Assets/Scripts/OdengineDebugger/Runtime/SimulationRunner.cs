@@ -1,6 +1,8 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using Odengine.Core;
+using Odengine.Coupling;
 using Odengine.Economy;
 using Odengine.Faction;
 using Odengine.Fields;
@@ -28,12 +30,13 @@ public sealed class SimulationRunner : MonoBehaviour
 
     // ── Runtime ───────────────────────────────────────────────────────────
 
-    private Dimension      _dim;
-    private EconomySystem  _economy;
-    private WarSystem      _war;
-    private WarConfig      _warConfig;
-    private FactionSystem  _factions;
-    private ulong          _tick;
+    private Dimension              _dim;
+    private EconomySystem          _economy;
+    private WarSystem              _war;
+    private WarConfig              _warConfig;
+    private FactionSystem          _factions;
+    private List<CouplingRule>     _couplingRules;
+    private ulong                  _tick;
 
     // Node IDs
     private static readonly string Hub    = "hub";
@@ -174,6 +177,44 @@ public sealed class SimulationRunner : MonoBehaviour
         _factions.AddPresence(North, FactionRed,  0.6f);
         _factions.AddPresence(East,  FactionBlue, 1.5f);
         _factions.AddPresence(South, FactionBlue, 0.9f);
+
+        // ── Coupling rules ────────────────────────────────────────────────
+        // Cross-system linkage: War/Faction state feeds back into Economy.
+        // All field IDs reference the canonical strings the systems register.
+        string warCh = _warConfig.ExposureChannelId; // "x" by default
+
+        _couplingRules = new List<CouplingRule>
+        {
+            // War exposure → availability drops (conflict disrupts supply chains)
+            // At war logAmp≈2, rate≈0.30/tick vs decay 0.25 → equilibrium ≈ -1.2 logAmp
+            new CouplingRule("war.exposure", "economy.availability")
+            {
+                InputChannelSelector  = warCh,
+                OutputChannelSelector = "*",
+                Operator              = CouplingOperator.Linear(-0.15f),
+                ScaleByDeltaTime      = true,
+            },
+
+            // War exposure → price pressure rises (scarcity drives prices)
+            // Injects into all currently-traded commodities at the node.
+            new CouplingRule("war.exposure", "economy.pricePressure")
+            {
+                InputChannelSelector  = warCh,
+                OutputChannelSelector = "*",
+                Operator              = CouplingOperator.Linear(0.08f),
+                ScaleByDeltaTime      = true,
+            },
+
+            // Strong faction presence → slight availability boost (factions secure trade)
+            // Uses "*" input so every faction colour contributes independently.
+            new CouplingRule("faction.presence", "economy.availability")
+            {
+                InputChannelSelector  = "*",
+                OutputChannelSelector = "*",
+                Operator              = CouplingOperator.Linear(0.04f),
+                ScaleByDeltaTime      = true,
+            },
+        };
     }
 
     // ── Tick loop ─────────────────────────────────────────────────────────
@@ -196,6 +237,9 @@ public sealed class SimulationRunner : MonoBehaviour
         Propagator.Step(_dim, _economy.PricePressure, dt);
         _war.Tick(dt);
         _factions.Tick(dt);
+
+        // Cross-system coupling: reads from post-propagation state, writes impulses.
+        CouplingProcessor.Step(_dim, _couplingRules, dt);
 
         DimensionProvider.NotifyTick(_tick);
     }
