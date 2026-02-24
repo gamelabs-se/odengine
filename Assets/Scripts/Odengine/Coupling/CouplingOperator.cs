@@ -42,14 +42,14 @@ namespace Odengine.Coupling
     [Serializable]
     public sealed class CouplingOperator
     {
-        public CouplingOperatorKind Kind       { get; set; } = CouplingOperatorKind.Linear;
-        public float                Scale        { get; set; } = 1f;
-        public float                Bias         { get; set; } = 0f;
-        public float                Min          { get; set; } = 0f;
-        public float                Max          { get; set; } = 1f;
-        public float                ThresholdValue { get; set; } = 0f;
-        public float                ImpulseValue { get; set; } = 1f;
-        public float                Reference    { get; set; } = 1f;
+        public CouplingOperatorKind Kind { get; set; } = CouplingOperatorKind.Linear;
+        public float Scale { get; set; } = 1f;
+        public float Bias { get; set; } = 0f;
+        public float Min { get; set; } = 0f;
+        public float Max { get; set; } = 1f;
+        public float ThresholdValue { get; set; } = 0f;
+        public float ImpulseValue { get; set; } = 1f;
+        public float Reference { get; set; } = 1f;
 
         /// <summary>
         /// Compute the raw output logAmp delta from <paramref name="input"/>.
@@ -58,13 +58,13 @@ namespace Odengine.Coupling
         /// </summary>
         public float Apply(float input) => Kind switch
         {
-            CouplingOperatorKind.Linear    => input * Scale + Bias,
-            CouplingOperatorKind.Clamp     => Math.Clamp(input, Min, Max) * Scale,
+            CouplingOperatorKind.Linear => input * Scale + Bias,
+            CouplingOperatorKind.Clamp => Math.Clamp(input, Min, Max) * Scale,
             CouplingOperatorKind.Threshold => input > ThresholdValue ? ImpulseValue : 0f,
-            CouplingOperatorKind.Ratio     => MathF.Abs(Reference) < 1e-9f
+            CouplingOperatorKind.Ratio => MathF.Abs(Reference) < 1e-9f
                                                  ? 0f
                                                  : (input / Reference) * Scale,
-            _                              => 0f,
+            _ => 0f,
         };
 
         // ── Factories ──────────────────────────────────────────────────────────
@@ -81,9 +81,9 @@ namespace Odengine.Coupling
         public static CouplingOperator Threshold(float threshold, float impulseValue)
             => new CouplingOperator
             {
-                Kind           = CouplingOperatorKind.Threshold,
+                Kind = CouplingOperatorKind.Threshold,
                 ThresholdValue = threshold,
-                ImpulseValue   = impulseValue,
+                ImpulseValue = impulseValue,
             };
 
         /// <summary>output = (input / <paramref name="reference"/>) × <paramref name="scale"/></summary>

@@ -23,18 +23,18 @@ namespace OdengineDebugger.Editor
     {
         // Node layout state — persists across repaints so the user can drag nodes
         private readonly Dictionary<string, Vector2> _positions = new();
-        private string  _draggingNode;
+        private string _draggingNode;
         private Vector2 _dragOffset;
 
         // ── Palette ──────────────────────────────────────────────────────────
 
-        private static readonly Color BgColor       = new(0.12f, 0.13f, 0.15f);
-        private static readonly Color EdgeColor      = new(0.42f, 0.44f, 0.48f);
-        private static readonly Color NodeFill       = new(0.26f, 0.30f, 0.38f);
-        private static readonly Color NodeBorder     = new(0.50f, 0.55f, 0.65f);
-        private static readonly Color NodeHover      = new(0.38f, 0.44f, 0.56f);
-        private static readonly Color PositiveColor  = new(0.90f, 0.45f, 0.12f);
-        private static readonly Color NegativeColor  = new(0.18f, 0.44f, 0.88f);
+        private static readonly Color BgColor = new(0.12f, 0.13f, 0.15f);
+        private static readonly Color EdgeColor = new(0.42f, 0.44f, 0.48f);
+        private static readonly Color NodeFill = new(0.26f, 0.30f, 0.38f);
+        private static readonly Color NodeBorder = new(0.50f, 0.55f, 0.65f);
+        private static readonly Color NodeHover = new(0.38f, 0.44f, 0.56f);
+        private static readonly Color PositiveColor = new(0.90f, 0.45f, 0.12f);
+        private static readonly Color NegativeColor = new(0.18f, 0.44f, 0.88f);
 
         private const float NodeRadius = 26f;
 
@@ -74,10 +74,10 @@ namespace OdengineDebugger.Editor
             var missing = nodeIds.Where(id => !_positions.ContainsKey(id)).ToList();
             if (missing.Count == 0) return;
 
-            float cx = rect.x + rect.width  * 0.5f;
+            float cx = rect.x + rect.width * 0.5f;
             float cy = rect.y + rect.height * 0.5f;
-            float r  = Mathf.Min(rect.width, rect.height) * 0.36f;
-            int   n  = nodeIds.Count;
+            float r = Mathf.Min(rect.width, rect.height) * 0.36f;
+            int n = nodeIds.Count;
 
             for (int i = 0; i < n; i++)
             {
@@ -104,7 +104,7 @@ namespace OdengineDebugger.Editor
                     if (Vector2.Distance(e.mousePosition, pos) > NodeRadius) continue;
 
                     _draggingNode = id;
-                    _dragOffset   = pos - e.mousePosition;
+                    _dragOffset = pos - e.mousePosition;
                     e.Use();
                     return;
                 }
@@ -147,7 +147,7 @@ namespace OdengineDebugger.Editor
                     Handles.DrawAAPolyLine(
                         width,
                         new Vector3(fromPos.x, fromPos.y),
-                        new Vector3(toPos.x,   toPos.y));
+                        new Vector3(toPos.x, toPos.y));
 
                     DrawArrowhead(fromPos, toPos, EdgeColor);
 
@@ -166,8 +166,8 @@ namespace OdengineDebugger.Editor
 
         private static void DrawArrowhead(Vector2 from, Vector2 to, Color color)
         {
-            Vector2 dir  = (to - from).normalized;
-            Vector2 tip  = to - dir * NodeRadius;
+            Vector2 dir = (to - from).normalized;
+            Vector2 tip = to - dir * NodeRadius;
             Vector2 perp = new Vector2(-dir.y, dir.x) * 5f;
 
             Handles.color = color;
@@ -197,8 +197,8 @@ namespace OdengineDebugger.Editor
                     if (dom != null)
                     {
                         float logAmp = field.GetLogAmp(id, dom);
-                        float t      = Mathf.Clamp01(Mathf.Abs(logAmp) / 3f);
-                        var   tint   = logAmp >= 0f ? PositiveColor : NegativeColor;
+                        float t = Mathf.Clamp01(Mathf.Abs(logAmp) / 3f);
+                        var tint = logAmp >= 0f ? PositiveColor : NegativeColor;
                         fill = Color.Lerp(fill, tint, t * 0.75f);
                     }
                 }
@@ -228,7 +228,7 @@ namespace OdengineDebugger.Editor
                     if (dom != null)
                     {
                         float logAmp = field.GetLogAmp(id, dom);
-                        string val   = $"{logAmp:+0.00;-0.00;0}";
+                        string val = $"{logAmp:+0.00;-0.00;0}";
                         GUI.Label(
                             new Rect(pos.x - NodeRadius, pos.y + NodeRadius + 2f, NodeRadius * 2f, 14f),
                             val,
@@ -244,16 +244,16 @@ namespace OdengineDebugger.Editor
         private static GUIStyle NodeLabelStyle => _nodeLabelStyle ??= new GUIStyle(EditorStyles.label)
         {
             alignment = TextAnchor.MiddleCenter,
-            fontSize  = 10,
-            normal    = { textColor = Color.white }
+            fontSize = 10,
+            normal = { textColor = Color.white }
         };
 
         private static GUIStyle _miniLabelStyle;
         private static GUIStyle MiniLabelStyle => _miniLabelStyle ??= new GUIStyle(EditorStyles.miniLabel)
         {
             alignment = TextAnchor.MiddleCenter,
-            fontSize  = 9,
-            normal    = { textColor = new Color(0.7f, 0.7f, 0.7f) }
+            fontSize = 9,
+            normal = { textColor = new Color(0.7f, 0.7f, 0.7f) }
         };
     }
 }

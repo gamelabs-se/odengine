@@ -235,7 +235,7 @@ namespace Odengine.Tests.Modules.Coupling
                 }
             };
 
-            CouplingProcessor.Step(dim, rules, dt: 0.5f);
+            CouplingProcessor.Step(dim, rules, deltaTime: 0.5f);
 
             // src logAmp=1.0, Linear(1.0), dt=0.5 → inject 0.5 into dst "y"
             Assert.That(dst.GetLogAmp("a", "y"), Is.EqualTo(1.0f).Within(1e-4f)); // 0.5 + 0.5
@@ -261,7 +261,7 @@ namespace Odengine.Tests.Modules.Coupling
                 }
             };
 
-            CouplingProcessor.Step(dim, rules, dt: 999f); // large dt — should NOT scale
+            CouplingProcessor.Step(dim, rules, deltaTime: 999f); // large dt — should NOT scale
 
             // raw = 2.0 × 0.3 = 0.6, no dt → dst = 0.5 + 0.6 = 1.1
             Assert.That(dst.GetLogAmp("a", "ch"), Is.EqualTo(1.1f).Within(1e-4f));
@@ -878,10 +878,12 @@ namespace Odengine.Tests.Modules.Coupling
         [Test]
         public void Integration_MultiTick_WarCouplingConvergesToEquilibrium()
         {
-            // Coupling injects at rate R per tick.
-            // Economy decays at rate D per tick.
-            // Equilibrium when: R × warLogAmp × dt = D × |availLogAmp| × dt
-            // → availLogAmp_eq = -R × warLogAmp / D = -0.2 × 2.0 / 0.4 = -1.0
+            // Per-tick discrete sequence (injection then decay):
+            //   val += -R × war × dt  →  -0.2 × 2.0 × 1.0 = -0.4
+            //   val *= (1 - D × dt)   →  val × (1 - 0.4 × 1.0) = val × 0.6
+            // Discrete equilibrium: val = (val - 0.4) × 0.6
+            //   → 0.4 × val = -0.24  → val_eq = -0.6
+            // (Continuous-time formula -R×war/D = -1.0 only holds as dt→0)
             var dim = MakeDimension("north");
             var warField   = dim.AddField("war.exposure", MakeProfile("wp", decay: 0f));
             var availField = dim.AddField("economy.availability",
@@ -916,8 +918,8 @@ namespace Odengine.Tests.Modules.Coupling
             }
 
             float final = availField.GetLogAmp("north", "ore");
-            Assert.That(final, Is.LessThan(-0.80f));
-            Assert.That(final, Is.GreaterThan(-1.30f));
+            Assert.That(final, Is.LessThan(-0.50f));
+            Assert.That(final, Is.GreaterThan(-0.70f));
         }
     }
 }

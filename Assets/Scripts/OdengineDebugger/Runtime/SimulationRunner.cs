@@ -30,23 +30,23 @@ public sealed class SimulationRunner : MonoBehaviour
 
     // ── Runtime ───────────────────────────────────────────────────────────
 
-    private Dimension              _dim;
-    private EconomySystem          _economy;
-    private WarSystem              _war;
-    private WarConfig              _warConfig;
-    private FactionSystem          _factions;
-    private List<CouplingRule>     _couplingRules;
-    private ulong                  _tick;
+    private Dimension _dim;
+    private EconomySystem _economy;
+    private WarSystem _war;
+    private WarConfig _warConfig;
+    private FactionSystem _factions;
+    private List<CouplingRule> _couplingRules;
+    private ulong _tick;
 
     // Node IDs
-    private static readonly string Hub    = "hub";
-    private static readonly string North  = "north";
-    private static readonly string South  = "south";
-    private static readonly string East   = "east";
-    private static readonly string West   = "west";
+    private static readonly string Hub = "hub";
+    private static readonly string North = "north";
+    private static readonly string South = "south";
+    private static readonly string East = "east";
+    private static readonly string West = "west";
 
     // Faction IDs
-    private static readonly string FactionRed  = "red";
+    private static readonly string FactionRed = "red";
     private static readonly string FactionBlue = "blue";
 
     // ── Lifecycle ─────────────────────────────────────────────────────────
@@ -74,18 +74,18 @@ public sealed class SimulationRunner : MonoBehaviour
         var dim = new Dimension();
 
         // Nodes
-        dim.AddNode(Hub,   "Hub");
+        dim.AddNode(Hub, "Hub");
         dim.AddNode(North, "North");
         dim.AddNode(South, "South");
-        dim.AddNode(East,  "East");
-        dim.AddNode(West,  "West");
+        dim.AddNode(East, "East");
+        dim.AddNode(West, "West");
 
         // Spokes from hub (bidirectional)
         float r = 0.4f;
-        dim.AddEdge(Hub, North, r);  dim.AddEdge(North, Hub, r);
-        dim.AddEdge(Hub, South, r);  dim.AddEdge(South, Hub, r);
-        dim.AddEdge(Hub, East,  r);  dim.AddEdge(East,  Hub, r);
-        dim.AddEdge(Hub, West,  r);  dim.AddEdge(West,  Hub, r);
+        dim.AddEdge(Hub, North, r); dim.AddEdge(North, Hub, r);
+        dim.AddEdge(Hub, South, r); dim.AddEdge(South, Hub, r);
+        dim.AddEdge(Hub, East, r); dim.AddEdge(East, Hub, r);
+        dim.AddEdge(Hub, West, r); dim.AddEdge(West, Hub, r);
 
         // One cross-link with a tag
         dim.AddEdge(North, East, 0.8f, "sea");
@@ -105,36 +105,36 @@ public sealed class SimulationRunner : MonoBehaviour
         //   Need: DecayRate > 2 * 0.04 * 0.607 = 0.049  → 0.25 gives 5× margin
         var econProfile = new FieldProfile("economy.demo")
         {
-            PropagationRate     = 0.04f,
-            DecayRate           = 0.25f,
+            PropagationRate = 0.04f,
+            DecayRate = 0.25f,
             EdgeResistanceScale = 1f,
-            MinLogAmpClamp      = -5f,
-            MaxLogAmpClamp      =  5f,
-            LogEpsilon          = 0.0001f
+            MinLogAmpClamp = -5f,
+            MaxLogAmpClamp = 5f,
+            LogEpsilon = 0.0001f
         };
         _economy = new EconomySystem(_dim, econProfile);
 
         // Small steady injections — equilibrium ≈ 0.5–1.5 logAmp at hub
-        _economy.InjectTrade(Hub,   "ore",   2f);
+        _economy.InjectTrade(Hub, "ore", 2f);
         _economy.InjectTrade(South, "water", 3f);
-        _economy.InjectTrade(East,  "ore",   1f);
+        _economy.InjectTrade(East, "ore", 1f);
 
         // ── War ───────────────────────────────────────────────────────────
         var warConfig = new WarConfig
         {
-            ExposureGrowthRate  = 0.04f,
-            AmbientDecayRate    = 0.06f,
-            CeasefireDecayRate  = 0.15f
+            ExposureGrowthRate = 0.04f,
+            AmbientDecayRate = 0.06f,
+            CeasefireDecayRate = 0.15f
         };
         _warConfig = warConfig;
         var warProfile = new FieldProfile("war.demo")
         {
-            PropagationRate     = 0.04f,
-            DecayRate           = 0.25f,
+            PropagationRate = 0.04f,
+            DecayRate = 0.25f,
             EdgeResistanceScale = 1.5f,
-            MinLogAmpClamp      = 0f,
-            MaxLogAmpClamp      = 5f,
-            LogEpsilon          = 0.0001f
+            MinLogAmpClamp = 0f,
+            MaxLogAmpClamp = 5f,
+            LogEpsilon = 0.0001f
         };
         _war = new WarSystem(_dim, warProfile, warConfig);
 
@@ -144,38 +144,38 @@ public sealed class SimulationRunner : MonoBehaviour
         // ── Faction ───────────────────────────────────────────────────────
         var presenceProfile = new FieldProfile("faction.presence.demo")
         {
-            PropagationRate     = 0.03f,
-            DecayRate           = 0.12f,
+            PropagationRate = 0.03f,
+            DecayRate = 0.12f,
             EdgeResistanceScale = 1f,
-            MinLogAmpClamp      = -5f,
-            MaxLogAmpClamp      =  5f,
-            LogEpsilon          = 0.0001f
+            MinLogAmpClamp = -5f,
+            MaxLogAmpClamp = 5f,
+            LogEpsilon = 0.0001f
         };
         var influenceProfile = new FieldProfile("faction.influence.demo")
         {
-            PropagationRate     = 0.04f,
-            DecayRate           = 0.10f,
+            PropagationRate = 0.04f,
+            DecayRate = 0.10f,
             EdgeResistanceScale = 0.8f,
-            MinLogAmpClamp      = -5f,
-            MaxLogAmpClamp      =  5f,
-            LogEpsilon          = 0.0001f
+            MinLogAmpClamp = -5f,
+            MaxLogAmpClamp = 5f,
+            LogEpsilon = 0.0001f
         };
         var stabilityProfile = new FieldProfile("faction.stability.demo")
         {
-            PropagationRate     = 0.02f,
-            DecayRate           = 0.08f,
+            PropagationRate = 0.02f,
+            DecayRate = 0.08f,
             EdgeResistanceScale = 1.5f,
-            MinLogAmpClamp      = -5f,
-            MaxLogAmpClamp      =  5f,
-            LogEpsilon          = 0.0001f
+            MinLogAmpClamp = -5f,
+            MaxLogAmpClamp = 5f,
+            LogEpsilon = 0.0001f
         };
         _factions = new FactionSystem(_dim, presenceProfile, influenceProfile, stabilityProfile);
 
         // Seed: red holds hub+west+north, blue holds east+south
-        _factions.AddPresence(Hub,   FactionRed,  1.5f);
-        _factions.AddPresence(West,  FactionRed,  1.2f);
-        _factions.AddPresence(North, FactionRed,  0.6f);
-        _factions.AddPresence(East,  FactionBlue, 1.5f);
+        _factions.AddPresence(Hub, FactionRed, 1.5f);
+        _factions.AddPresence(West, FactionRed, 1.2f);
+        _factions.AddPresence(North, FactionRed, 0.6f);
+        _factions.AddPresence(East, FactionBlue, 1.5f);
         _factions.AddPresence(South, FactionBlue, 0.9f);
 
         // ── Coupling rules ────────────────────────────────────────────────
@@ -233,7 +233,7 @@ public sealed class SimulationRunner : MonoBehaviour
         _tick++;
         float dt = _deltaTime;
 
-        Propagator.Step(_dim, _economy.Availability,  dt);
+        Propagator.Step(_dim, _economy.Availability, dt);
         Propagator.Step(_dim, _economy.PricePressure, dt);
         _war.Tick(dt);
         _factions.Tick(dt);
@@ -252,18 +252,18 @@ public sealed class SimulationRunner : MonoBehaviour
         string ch = _warConfig.ExposureChannelId; // "x" by default
 
         // ── War ──────────────────────────────────────────────────────────
-        SimulationControls.RegisterNodeButton("⚔ War", "Ignite War",  "Ignite!",
+        SimulationControls.RegisterNodeButton("⚔ War", "Ignite War", "Ignite!",
             id => _war.DeclareWar(id));
 
-        SimulationControls.RegisterNodeButton("⚔ War", "Ceasefire",   "Ceasefire",
+        SimulationControls.RegisterNodeButton("⚔ War", "Ceasefire", "Ceasefire",
             id => _war.DeclareCeasefire(id));
 
         SimulationControls.RegisterNodeSlider("⚔ War", "Strike", 0.1f, 3f, 0.5f, "logAmp",
             (id, v) => _war.Exposure.AddLogAmp(id, ch, v));
 
         // ── Economy ───────────────────────────────────────────────────────
-        SimulationControls.RegisterNodeSlider("💰 Economy", "Surge Ore",   1f, 30f, 5f, "units",
-            (id, v) => _economy.InjectTrade(id, "ore",   v));
+        SimulationControls.RegisterNodeSlider("💰 Economy", "Surge Ore", 1f, 30f, 5f, "units",
+            (id, v) => _economy.InjectTrade(id, "ore", v));
 
         SimulationControls.RegisterNodeSlider("💰 Economy", "Surge Water", 1f, 30f, 5f, "units",
             (id, v) => _economy.InjectTrade(id, "water", v));
@@ -272,15 +272,16 @@ public sealed class SimulationRunner : MonoBehaviour
             (id, v) => _economy.PricePressure.AddLogAmp(id, "ore", v));
 
         // ── Faction ───────────────────────────────────────────────────────
-        SimulationControls.RegisterNodeSlider("🏳 Faction", "Push Red",  0.1f, 2f, 0.5f, "logAmp",
-            (id, v) => _factions.AddPresence(id, FactionRed,  v));
+        SimulationControls.RegisterNodeSlider("🏳 Faction", "Push Red", 0.1f, 2f, 0.5f, "logAmp",
+            (id, v) => _factions.AddPresence(id, FactionRed, v));
 
         SimulationControls.RegisterNodeSlider("🏳 Faction", "Push Blue", 0.1f, 2f, 0.5f, "logAmp",
             (id, v) => _factions.AddPresence(id, FactionBlue, v));
 
         SimulationControls.RegisterNodeSlider("🏳 Faction", "Destabilize", 0.1f, 2f, 0.3f, "logAmp",
-            (id, v) => {
-                _factions.Stability.AddLogAmp(id, FactionRed,  -v);
+            (id, v) =>
+            {
+                _factions.Stability.AddLogAmp(id, FactionRed, -v);
                 _factions.Stability.AddLogAmp(id, FactionBlue, -v);
             });
 

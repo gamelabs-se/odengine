@@ -33,7 +33,7 @@ namespace Odengine.Coupling
             float deltaTime)
         {
             if (dimension == null) throw new ArgumentNullException(nameof(dimension));
-            if (rules    == null) throw new ArgumentNullException(nameof(rules));
+            if (rules == null) throw new ArgumentNullException(nameof(rules));
             if (rules.Count == 0 || deltaTime <= 0f) return;
 
             // ── Accumulation phase (reads only) ───────────────────────────────
@@ -58,8 +58,8 @@ namespace Odengine.Coupling
                     foreach (var inputChannelId in inputChannels)
                     {
                         float inputLogAmp = sourceField.GetLogAmp(nodeId, inputChannelId);
-                        float rawOutput   = rule.Operator.Apply(inputLogAmp);
-                        float output      = rule.ScaleByDeltaTime ? rawOutput * deltaTime : rawOutput;
+                        float rawOutput = rule.Operator.Apply(inputLogAmp);
+                        float output = rule.ScaleByDeltaTime ? rawOutput * deltaTime : rawOutput;
 
                         if (MathF.Abs(output) < epsilon) continue;
 
@@ -79,9 +79,9 @@ namespace Odengine.Coupling
 
             // ── Apply phase (writes only, deterministic sorted order) ──────────
             var sortedKeys = deltas.Keys
-                .OrderBy(k => k.fieldId,   StringComparer.Ordinal)
-                .ThenBy(k => k.channelId,  StringComparer.Ordinal)
-                .ThenBy(k => k.nodeId,     StringComparer.Ordinal)
+                .OrderBy(k => k.fieldId, StringComparer.Ordinal)
+                .ThenBy(k => k.channelId, StringComparer.Ordinal)
+                .ThenBy(k => k.nodeId, StringComparer.Ordinal)
                 .ToList();
 
             foreach (var key in sortedKeys)
