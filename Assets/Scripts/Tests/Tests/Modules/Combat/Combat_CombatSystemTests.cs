@@ -14,12 +14,12 @@ namespace Odengine.Tests.Modules.Combat
         private static FieldProfile MakeProfile(string id, float decay = 0.1f, float propagation = 0f) =>
             new FieldProfile(id)
             {
-                LogEpsilon        = 0.0001f,
-                DecayRate         = decay,
-                PropagationRate   = propagation,
+                LogEpsilon = 0.0001f,
+                DecayRate = decay,
+                PropagationRate = propagation,
                 EdgeResistanceScale = 1f,
-                MinLogAmpClamp    = -10f,
-                MaxLogAmpClamp    =  10f,
+                MinLogAmpClamp = -10f,
+                MaxLogAmpClamp = 10f,
             };
 
         private static Dimension MakeDimension(params string[] nodeIds)
@@ -32,7 +32,7 @@ namespace Odengine.Tests.Modules.Combat
         private static CombatSystem MakeCombat(Dimension dim, float attrition = 0.3f, float decay = 0f)
         {
             var profile = MakeProfile("combat.intensity", decay: decay);
-            var config  = new CombatConfig { AttritionRate = attrition, ActiveThreshold = 0.0001f };
+            var config = new CombatConfig { AttritionRate = attrition, ActiveThreshold = 0.0001f };
             return new CombatSystem(dim, profile, config);
         }
 
@@ -93,10 +93,10 @@ namespace Odengine.Tests.Modules.Combat
         {
             var dim = MakeDimension("north");
             var combat = MakeCombat(dim);
-            combat.CommitForce("north", "red",  2f);
+            combat.CommitForce("north", "red", 2f);
             combat.CommitForce("north", "blue", 1.5f);
 
-            Assert.That(combat.Intensity.GetLogAmp("north", "red"),  Is.EqualTo(2f).Within(1e-5f));
+            Assert.That(combat.Intensity.GetLogAmp("north", "red"), Is.EqualTo(2f).Within(1e-5f));
             Assert.That(combat.Intensity.GetLogAmp("north", "blue"), Is.EqualTo(1.5f).Within(1e-5f));
         }
 
@@ -142,7 +142,7 @@ namespace Odengine.Tests.Modules.Combat
         {
             var dim = MakeDimension("north");
             var combat = MakeCombat(dim);
-            combat.CommitForce("north", "red",  1f);
+            combat.CommitForce("north", "red", 1f);
             combat.CommitForce("north", "blue", 3f);
             Assert.That(combat.GetDominantFaction("north"), Is.EqualTo("blue"));
         }
@@ -152,7 +152,7 @@ namespace Odengine.Tests.Modules.Combat
         {
             var dim = MakeDimension("north", "south");
             var combat = MakeCombat(dim);
-            combat.CommitForce("north", "red",  3f);
+            combat.CommitForce("north", "red", 3f);
             combat.CommitForce("south", "blue", 2f);
 
             Assert.That(combat.GetDominantFaction("north"), Is.EqualTo("red"));
@@ -185,7 +185,7 @@ namespace Odengine.Tests.Modules.Combat
         {
             var dim = MakeDimension("north");
             var combat = MakeCombat(dim);
-            combat.CommitForce("north", "red",  2f);
+            combat.CommitForce("north", "red", 2f);
             combat.CommitForce("north", "blue", 1.5f);
             Assert.That(combat.GetIntensity("north"), Is.EqualTo(3.5f).Within(1e-5f));
         }
@@ -208,7 +208,7 @@ namespace Odengine.Tests.Modules.Combat
             var dim = MakeDimension("north", "south", "east");
             var combat = MakeCombat(dim);
             combat.CommitForce("north", "red", 1f);
-            combat.CommitForce("east",  "blue", 1f);
+            combat.CommitForce("east", "blue", 1f);
             // "south" has no activity
 
             var active = combat.GetActiveNodeIds();
@@ -222,8 +222,8 @@ namespace Odengine.Tests.Modules.Combat
         {
             var dim = MakeDimension("z-node", "a-node", "m-node");
             var combat = MakeCombat(dim);
-            combat.CommitForce("z-node", "red",  1f);
-            combat.CommitForce("a-node", "red",  1f);
+            combat.CommitForce("z-node", "red", 1f);
+            combat.CommitForce("a-node", "red", 1f);
             combat.CommitForce("m-node", "blue", 1f);
 
             var active = combat.GetActiveNodeIds();
@@ -255,16 +255,16 @@ namespace Odengine.Tests.Modules.Combat
         {
             var dim = MakeDimension("north");
             var combat = MakeCombat(dim, attrition: 0.5f, decay: 0f);
-            combat.CommitForce("north", "red",  2f);
+            combat.CommitForce("north", "red", 2f);
             combat.CommitForce("north", "blue", 1f);
 
             combat.Tick(1f);
 
             // red  takes: -blue(1.0)  × 0.5 × 1.0 = -0.5  → 1.5
             // blue takes: -red(2.0)   × 0.5 × 1.0 = -1.0  → 0.0 (field prunes near-zero)
-            Assert.That(combat.Intensity.GetLogAmp("north", "red"),  Is.LessThan(2f));
+            Assert.That(combat.Intensity.GetLogAmp("north", "red"), Is.LessThan(2f));
             Assert.That(combat.Intensity.GetLogAmp("north", "blue"), Is.LessThan(1f));
-            Assert.That(combat.Intensity.GetLogAmp("north", "red"),  Is.EqualTo(1.5f).Within(1e-4f));
+            Assert.That(combat.Intensity.GetLogAmp("north", "red"), Is.EqualTo(1.5f).Within(1e-4f));
         }
 
         [Test]
@@ -275,7 +275,7 @@ namespace Odengine.Tests.Modules.Combat
             {
                 var dim = MakeDimension("n");
                 var combat = MakeCombat(dim, attrition: 0.4f, decay: 0f);
-                combat.CommitForce("n", "red",  3f);
+                combat.CommitForce("n", "red", 3f);
                 combat.CommitForce("n", "blue", 3f);
                 combat.Tick(dt);
                 return combat.Intensity.GetLogAmp("n", "red");
@@ -295,8 +295,8 @@ namespace Odengine.Tests.Modules.Combat
         {
             var dim = MakeDimension("hub");
             var combat = MakeCombat(dim, attrition: 0.2f, decay: 0f);
-            combat.CommitForce("hub", "red",   3f);
-            combat.CommitForce("hub", "blue",  2f);
+            combat.CommitForce("hub", "red", 3f);
+            combat.CommitForce("hub", "blue", 2f);
             combat.CommitForce("hub", "green", 1f);
 
             combat.Tick(1f);
@@ -304,7 +304,7 @@ namespace Odengine.Tests.Modules.Combat
             // red   takes: -(blue+green) = -3.0 × 0.2 × 1.0 = -0.6 → 2.4
             // blue  takes: -(red+green)  = -4.0 × 0.2 × 1.0 = -0.8 → 1.2
             // green takes: -(red+blue)   = -5.0 × 0.2 × 1.0 = -1.0 → 0.0 (pruned)
-            Assert.That(combat.Intensity.GetLogAmp("hub", "red"),  Is.EqualTo(2.4f).Within(1e-4f));
+            Assert.That(combat.Intensity.GetLogAmp("hub", "red"), Is.EqualTo(2.4f).Within(1e-4f));
             Assert.That(combat.Intensity.GetLogAmp("hub", "blue"), Is.EqualTo(1.2f).Within(1e-4f));
             Assert.That(combat.Intensity.GetLogAmp("hub", "green"),
                 Is.LessThanOrEqualTo(0f).Or.EqualTo(0f).Within(1e-4f));
@@ -318,18 +318,18 @@ namespace Odengine.Tests.Modules.Combat
             // Double-buffered: both see the exact pre-tick state.
             var dim = MakeDimension("north");
             var combat = MakeCombat(dim, attrition: 1.0f, decay: 0f);
-            combat.CommitForce("north", "red",  2f);
+            combat.CommitForce("north", "red", 2f);
             combat.CommitForce("north", "blue", 2f);
 
             combat.Tick(1f);
 
             // Both see opponent = 2.0 → both take -2.0 → both land at 0 (or near-zero)
-            float redFinal  = combat.Intensity.GetLogAmp("north", "red");
+            float redFinal = combat.Intensity.GetLogAmp("north", "red");
             float blueFinal = combat.Intensity.GetLogAmp("north", "blue");
 
             // With symmetric starting logAmps and high attrition,
             // double-buffer produces symmetric outcome.
-            Assert.That(redFinal,  Is.EqualTo(blueFinal).Within(1e-4f));
+            Assert.That(redFinal, Is.EqualTo(blueFinal).Within(1e-4f));
         }
 
         [Test]
@@ -338,15 +338,15 @@ namespace Odengine.Tests.Modules.Combat
             var dim = MakeDimension("north", "south");
             var combat = MakeCombat(dim, attrition: 0.5f, decay: 0f);
             // north: only red — no attrition
-            combat.CommitForce("north", "red",  2f);
+            combat.CommitForce("north", "red", 2f);
             // south: red vs blue — both take attrition
-            combat.CommitForce("south", "red",  1f);
+            combat.CommitForce("south", "red", 1f);
             combat.CommitForce("south", "blue", 1f);
 
             combat.Tick(1f);
 
-            Assert.That(combat.Intensity.GetLogAmp("north", "red"),  Is.EqualTo(2f).Within(1e-4f));
-            Assert.That(combat.Intensity.GetLogAmp("south", "red"),  Is.LessThan(1f));
+            Assert.That(combat.Intensity.GetLogAmp("north", "red"), Is.EqualTo(2f).Within(1e-4f));
+            Assert.That(combat.Intensity.GetLogAmp("south", "red"), Is.LessThan(1f));
             Assert.That(combat.Intensity.GetLogAmp("south", "blue"), Is.LessThan(1f));
         }
 
@@ -355,12 +355,12 @@ namespace Odengine.Tests.Modules.Combat
         {
             var dim = MakeDimension("north");
             var combat = MakeCombat(dim, attrition: 99f, decay: 0.5f);
-            combat.CommitForce("north", "red",  2f);
+            combat.CommitForce("north", "red", 2f);
             combat.CommitForce("north", "blue", 2f);
 
             combat.Tick(0f);
 
-            Assert.That(combat.Intensity.GetLogAmp("north", "red"),  Is.EqualTo(2f).Within(1e-4f));
+            Assert.That(combat.Intensity.GetLogAmp("north", "red"), Is.EqualTo(2f).Within(1e-4f));
             Assert.That(combat.Intensity.GetLogAmp("north", "blue"), Is.EqualTo(2f).Within(1e-4f));
         }
 
@@ -375,9 +375,9 @@ namespace Odengine.Tests.Modules.Combat
             {
                 var dim = MakeDimension("north", "south");
                 var combat = MakeCombat(dim, attrition: 0.3f, decay: 0.05f);
-                combat.CommitForce("north", "red",  2f);
+                combat.CommitForce("north", "red", 2f);
                 combat.CommitForce("north", "blue", 1.5f);
-                combat.CommitForce("south", "red",  1f);
+                combat.CommitForce("south", "red", 1f);
                 combat.CommitForce("south", "green", 3f);
 
                 for (int i = 0; i < 5; i++)
@@ -410,13 +410,13 @@ namespace Odengine.Tests.Modules.Combat
             // because it takes heavier attrition from the stronger opponent.
             var dim = MakeDimension("north");
             var combat = MakeCombat(dim, attrition: 0.4f, decay: 0f);
-            combat.CommitForce("north", "red",  4f);  // much stronger
+            combat.CommitForce("north", "red", 4f);  // much stronger
             combat.CommitForce("north", "blue", 1f);  // weaker
 
             for (int i = 0; i < 5; i++)
                 combat.Tick(1f);
 
-            float redFinal  = combat.Intensity.GetLogAmp("north", "red");
+            float redFinal = combat.Intensity.GetLogAmp("north", "red");
             float blueFinal = combat.Intensity.GetLogAmp("north", "blue");
 
             Assert.That(redFinal, Is.GreaterThan(blueFinal),
@@ -431,7 +431,7 @@ namespace Odengine.Tests.Modules.Combat
             // Starting at 1.0, LogEpsilon = 0.0001 → pruned after ~14 ticks (0.5¹⁴ ≈ 6e-5).
             var dim = MakeDimension("north");
             var combat = MakeCombat(dim, attrition: 0.5f, decay: 0f);
-            combat.CommitForce("north", "red",  1f);
+            combat.CommitForce("north", "red", 1f);
             combat.CommitForce("north", "blue", 1f);
 
             for (int i = 0; i < 15; i++)
@@ -447,7 +447,7 @@ namespace Odengine.Tests.Modules.Combat
             // A lone faction at a node with decay=0.5: its logAmp should fall via Propagator.Step.
             var dim = MakeDimension("north");
             var profile = MakeProfile("combat.intensity", decay: 0.5f);
-            var combat  = new CombatSystem(dim, profile);
+            var combat = new CombatSystem(dim, profile);
             combat.CommitForce("north", "red", 2f);
 
             combat.Tick(1f); // No opponent → no attrition, only decay
@@ -467,17 +467,19 @@ namespace Odengine.Tests.Modules.Combat
             var dim = MakeDimension("north");
 
             var combatProfile = MakeProfile("combat.intensity", decay: 0f);
-            var warProfile    = new FieldProfile("war.demo")
+            var warProfile = new FieldProfile("war.demo")
             {
-                LogEpsilon = 0.0001f, DecayRate = 0f,
-                MinLogAmpClamp = 0f, MaxLogAmpClamp = 10f,
+                LogEpsilon = 0.0001f,
+                DecayRate = 0f,
+                MinLogAmpClamp = 0f,
+                MaxLogAmpClamp = 10f,
             };
 
-            var combat   = new CombatSystem(dim, combatProfile);
+            var combat = new CombatSystem(dim, combatProfile);
             var warField = dim.AddField("war.exposure", warProfile);
 
             // Commit an engagement
-            combat.CommitForce("north", "red",  2f);
+            combat.CommitForce("north", "red", 2f);
             combat.CommitForce("north", "blue", 1f);
 
             // Coupling: combat.intensity → war.exposure (channel "x")
@@ -508,11 +510,13 @@ namespace Odengine.Tests.Modules.Combat
             var combatProfile = MakeProfile("combat.intensity", decay: 0f);
             var warProfile = new FieldProfile("war.demo")
             {
-                LogEpsilon = 0.0001f, DecayRate = 0f,
-                MinLogAmpClamp = 0f, MaxLogAmpClamp = 10f,
+                LogEpsilon = 0.0001f,
+                DecayRate = 0f,
+                MinLogAmpClamp = 0f,
+                MaxLogAmpClamp = 10f,
             };
 
-            var combat   = new CombatSystem(dim, combatProfile);
+            var combat = new CombatSystem(dim, combatProfile);
             var warField = dim.AddField("war.exposure", warProfile);
             warField.AddLogAmp("north", "x", 1f);
 
@@ -543,21 +547,21 @@ namespace Odengine.Tests.Modules.Combat
         {
             var dim = MakeDimension("a", "b", "c");
             var combat = MakeCombat(dim, attrition: 0.3f, decay: 0.05f);
-            combat.CommitForce("a", "red",   3f);
-            combat.CommitForce("a", "blue",  2f);
+            combat.CommitForce("a", "red", 3f);
+            combat.CommitForce("a", "blue", 2f);
             combat.CommitForce("b", "green", 1f);
-            combat.CommitForce("b", "red",   1.5f);
+            combat.CommitForce("b", "red", 1.5f);
 
             for (int i = 0; i < 200; i++)
                 combat.Tick(0.5f);
 
             foreach (var nodeId in new[] { "a", "b", "c" })
-            foreach (var factionId in new[] { "red", "blue", "green" })
-            {
-                float v = combat.Intensity.GetLogAmp(nodeId, factionId);
-                Assert.That(float.IsNaN(v),      Is.False, $"NaN at ({nodeId},{factionId})");
-                Assert.That(float.IsInfinity(v), Is.False, $"Inf at ({nodeId},{factionId})");
-            }
+                foreach (var factionId in new[] { "red", "blue", "green" })
+                {
+                    float v = combat.Intensity.GetLogAmp(nodeId, factionId);
+                    Assert.That(float.IsNaN(v), Is.False, $"NaN at ({nodeId},{factionId})");
+                    Assert.That(float.IsInfinity(v), Is.False, $"Inf at ({nodeId},{factionId})");
+                }
         }
 
         [Test]
@@ -566,10 +570,10 @@ namespace Odengine.Tests.Modules.Combat
             var dim = MakeDimension("north");
             var profile = new FieldProfile("combat.intensity")
             {
-                LogEpsilon      = 0.0001f,
-                MinLogAmpClamp  = -5f,
-                MaxLogAmpClamp  =  5f,
-                DecayRate       = 0f,
+                LogEpsilon = 0.0001f,
+                MinLogAmpClamp = -5f,
+                MaxLogAmpClamp = 5f,
+                DecayRate = 0f,
                 PropagationRate = 0f,
             };
             var combat = new CombatSystem(dim, profile, new CombatConfig { AttritionRate = 0.01f });

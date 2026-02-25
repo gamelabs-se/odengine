@@ -57,8 +57,8 @@ namespace Odengine.Intel
         public IntelSystem(Dimension dimension, FieldProfile coverageProfile, IntelConfig config = null)
         {
             _dimension = dimension ?? throw new ArgumentNullException(nameof(dimension));
-            _config    = config ?? new IntelConfig();
-            Coverage   = dimension.GetOrCreateField("intel.coverage",
+            _config = config ?? new IntelConfig();
+            Coverage = dimension.GetOrCreateField("intel.coverage",
                 coverageProfile ?? throw new ArgumentNullException(nameof(coverageProfile)));
         }
 
@@ -71,7 +71,7 @@ namespace Odengine.Intel
         /// </summary>
         public void DeploySensor(string nodeId, string factionId, float powerLogAmp)
         {
-            if (string.IsNullOrEmpty(nodeId))    throw new ArgumentException(nameof(nodeId));
+            if (string.IsNullOrEmpty(nodeId)) throw new ArgumentException(nameof(nodeId));
             if (string.IsNullOrEmpty(factionId)) throw new ArgumentException(nameof(factionId));
             Coverage.AddLogAmp(nodeId, factionId, powerLogAmp);
         }
@@ -82,7 +82,7 @@ namespace Odengine.Intel
         /// </summary>
         public float GetCoverage(string nodeId, string factionId)
         {
-            if (string.IsNullOrEmpty(nodeId))    throw new ArgumentException(nameof(nodeId));
+            if (string.IsNullOrEmpty(nodeId)) throw new ArgumentException(nameof(nodeId));
             if (string.IsNullOrEmpty(factionId)) throw new ArgumentException(nameof(factionId));
             return Coverage.GetLogAmp(nodeId, factionId);
         }
@@ -121,7 +121,7 @@ namespace Odengine.Intel
             if (string.IsNullOrEmpty(nodeId)) throw new ArgumentException(nameof(nodeId));
 
             var channels = Coverage.GetActiveChannelIdsSortedForNode(nodeId);
-            var result   = new List<string>(channels.Count);
+            var result = new List<string>(channels.Count);
             foreach (var ch in channels)
             {
                 if (Coverage.GetLogAmp(nodeId, ch) >= _config.ActiveCoverageThreshold)

@@ -38,47 +38,47 @@ namespace Odengine.Tests.Scenarios
         //
         // hub is the chokepoint; frontier is contested territory.
 
-        private const string Capitol  = "capitol";
-        private const string Hub      = "hub";
+        private const string Capitol = "capitol";
+        private const string Hub = "hub";
         private const string Frontier = "frontier";
-        private const string Port     = "port";
-        private const string South    = "south";
-        private const string Outpost  = "outpost";
+        private const string Port = "port";
+        private const string South = "south";
+        private const string Outpost = "outpost";
 
-        private const string Red  = "red";
+        private const string Red = "red";
         private const string Blue = "blue";
 
         // ── Profile factory ───────────────────────────────────────────────
 
         private static FieldProfile Profile(
             string id,
-            float  decay         = 0.10f,
-            float  propagation   = 0.03f,
-            float  edgeResistance = 1f,
-            float  minClamp      = -10f,
-            float  maxClamp      =  10f) =>
+            float decay = 0.10f,
+            float propagation = 0.03f,
+            float edgeResistance = 1f,
+            float minClamp = -10f,
+            float maxClamp = 10f) =>
             new FieldProfile(id)
             {
-                LogEpsilon          = 0.0001f,
-                DecayRate           = decay,
-                PropagationRate     = propagation,
+                LogEpsilon = 0.0001f,
+                DecayRate = decay,
+                PropagationRate = propagation,
                 EdgeResistanceScale = edgeResistance,
-                MinLogAmpClamp      = minClamp,
-                MaxLogAmpClamp      = maxClamp,
+                MinLogAmpClamp = minClamp,
+                MaxLogAmpClamp = maxClamp,
             };
 
         // ── World construction ────────────────────────────────────────────
 
         private sealed class World
         {
-            public readonly Dimension       Dim;
-            public readonly EconomySystem   Economy;
-            public readonly WarSystem       War;
-            public readonly FactionSystem   Factions;
-            public readonly CombatSystem    Combat;
-            public readonly IntelSystem     Intel;
+            public readonly Dimension Dim;
+            public readonly EconomySystem Economy;
+            public readonly WarSystem War;
+            public readonly FactionSystem Factions;
+            public readonly CombatSystem Combat;
+            public readonly IntelSystem Intel;
             public readonly List<CouplingRule> Rules;
-            public readonly WarConfig       WarConfig;
+            public readonly WarConfig WarConfig;
 
             public World()
             {
@@ -91,24 +91,24 @@ namespace Odengine.Tests.Scenarios
                 Dim.AddNode(South);
                 Dim.AddNode(Outpost);
 
-                Dim.AddEdge(Capitol,  Hub,      resistance: 0.3f);
-                Dim.AddEdge(Hub,      Frontier, resistance: 0.5f);
-                Dim.AddEdge(Hub,      Port,     resistance: 0.4f);
-                Dim.AddEdge(Hub,      South,    resistance: 0.6f);
-                Dim.AddEdge(Frontier, Outpost,  resistance: 1.0f);
+                Dim.AddEdge(Capitol, Hub, resistance: 0.3f);
+                Dim.AddEdge(Hub, Frontier, resistance: 0.5f);
+                Dim.AddEdge(Hub, Port, resistance: 0.4f);
+                Dim.AddEdge(Hub, South, resistance: 0.6f);
+                Dim.AddEdge(Frontier, Outpost, resistance: 1.0f);
 
                 // ── Economy ───────────────────────────────────────────
                 Economy = new EconomySystem(Dim,
                     Profile("economy.demo", decay: 0.15f, propagation: 0.04f, maxClamp: 5f, minClamp: -5f));
-                Economy.InjectTrade(Capitol,  "ore",   3f);
-                Economy.InjectTrade(Port,     "water", 2f);
-                Economy.InjectTrade(South,    "ore",   1f);
+                Economy.InjectTrade(Capitol, "ore", 3f);
+                Economy.InjectTrade(Port, "water", 2f);
+                Economy.InjectTrade(South, "ore", 1f);
 
                 // ── War ───────────────────────────────────────────────
                 WarConfig = new WarConfig
                 {
                     ExposureGrowthRate = 0.05f,
-                    AmbientDecayRate   = 0.08f,
+                    AmbientDecayRate = 0.08f,
                     CeasefireDecayRate = 0.15f,
                 };
                 War = new WarSystem(Dim,
@@ -119,16 +119,16 @@ namespace Odengine.Tests.Scenarios
 
                 // ── Faction ───────────────────────────────────────────
                 Factions = new FactionSystem(Dim,
-                    Profile("faction.presence.demo",  decay: 0.12f, propagation: 0.03f, maxClamp: 5f, minClamp: -5f),
+                    Profile("faction.presence.demo", decay: 0.12f, propagation: 0.03f, maxClamp: 5f, minClamp: -5f),
                     Profile("faction.influence.demo", decay: 0.10f, propagation: 0.04f, maxClamp: 5f, minClamp: -5f),
                     Profile("faction.stability.demo", decay: 0.08f, propagation: 0.02f, maxClamp: 5f, minClamp: -5f));
 
-                Factions.AddPresence(Capitol,  Red,  2f);
-                Factions.AddPresence(Hub,      Red,  1.5f);
-                Factions.AddPresence(Frontier, Red,  0.8f);
-                Factions.AddPresence(Port,     Blue, 1.5f);
-                Factions.AddPresence(South,    Blue, 1f);
-                Factions.AddPresence(Outpost,  Blue, 0.5f);
+                Factions.AddPresence(Capitol, Red, 2f);
+                Factions.AddPresence(Hub, Red, 1.5f);
+                Factions.AddPresence(Frontier, Red, 0.8f);
+                Factions.AddPresence(Port, Blue, 1.5f);
+                Factions.AddPresence(South, Blue, 1f);
+                Factions.AddPresence(Outpost, Blue, 0.5f);
 
                 // ── Combat ────────────────────────────────────────────
                 Combat = new CombatSystem(Dim,
@@ -136,7 +136,7 @@ namespace Odengine.Tests.Scenarios
                             minClamp: 0f, maxClamp: 8f),
                     new CombatConfig { AttritionRate = 0.25f, ActiveThreshold = 0.0001f });
 
-                Combat.CommitForce(Frontier, Red,  1.5f);
+                Combat.CommitForce(Frontier, Red, 1.5f);
                 Combat.CommitForce(Frontier, Blue, 1.0f);
 
                 // ── Intel ─────────────────────────────────────────────
@@ -145,9 +145,9 @@ namespace Odengine.Tests.Scenarios
                             minClamp: -5f, maxClamp: 5f),
                     new IntelConfig { ActiveCoverageThreshold = 0.0001f });
 
-                Intel.DeploySensor(Capitol,  Red,  2f);
-                Intel.DeploySensor(Hub,      Red,  1.5f);
-                Intel.DeploySensor(Port,     Blue, 2f);
+                Intel.DeploySensor(Capitol, Red, 2f);
+                Intel.DeploySensor(Hub, Red, 1.5f);
+                Intel.DeploySensor(Port, Blue, 2f);
                 Intel.DeploySensor(Frontier, Blue, 1f);
 
                 // ── Coupling rules ────────────────────────────────────
@@ -216,7 +216,7 @@ namespace Odengine.Tests.Scenarios
 
             public void Tick(float dt)
             {
-                Propagator.Step(Dim, Economy.Availability,  dt);
+                Propagator.Step(Dim, Economy.Availability, dt);
                 Propagator.Step(Dim, Economy.PricePressure, dt);
                 War.Tick(dt);
                 Factions.Tick(dt);
@@ -380,9 +380,9 @@ namespace Odengine.Tests.Scenarios
                 var world = new World();
                 // Heavy additional combat and war at the chokepoint
                 world.War.DeclareWar(Hub);
-                world.Combat.CommitForce(Hub,      Red,  3f);
-                world.Combat.CommitForce(Hub,      Blue, 3f);
-                world.Combat.CommitForce(Frontier, Red,  3f);
+                world.Combat.CommitForce(Hub, Red, 3f);
+                world.Combat.CommitForce(Hub, Blue, 3f);
+                world.Combat.CommitForce(Frontier, Red, 3f);
                 world.Combat.CommitForce(Frontier, Blue, 3f);
 
                 for (int i = 0; i < 30; i++) world.Tick(0.1f);
@@ -409,7 +409,7 @@ namespace Odengine.Tests.Scenarios
                 var world = new World();
                 if (heavyCombat)
                 {
-                    world.Combat.CommitForce(Frontier, Red,  4f);
+                    world.Combat.CommitForce(Frontier, Red, 4f);
                     world.Combat.CommitForce(Frontier, Blue, 4f);
                     world.Intel.DeploySensor(Frontier, Blue, 2f); // blue scouts at start
                 }
@@ -419,17 +419,17 @@ namespace Odengine.Tests.Scenarios
                 return world.Intel.GetTotalCoverage(Frontier);
             }
 
-            float noCombat  = IntelAfter(heavyCombat: false);
+            float noCombat = IntelAfter(heavyCombat: false);
             float yesCombat = IntelAfter(heavyCombat: true);
 
             // Heavy combat at Frontier should not allow intel to build up there
             // (faction presence erosion via coupling limits sensor reinforcement)
             // We don't assert a strict ordering here because initial seed values
             // differ — instead assert that both are finite and sensible.
-            Assert.That(float.IsNaN(noCombat),      Is.False);
-            Assert.That(float.IsNaN(yesCombat),     Is.False);
+            Assert.That(float.IsNaN(noCombat), Is.False);
+            Assert.That(float.IsNaN(yesCombat), Is.False);
             Assert.That(float.IsInfinity(noCombat), Is.False);
-            Assert.That(float.IsInfinity(yesCombat),Is.False);
+            Assert.That(float.IsInfinity(yesCombat), Is.False);
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -443,19 +443,19 @@ namespace Odengine.Tests.Scenarios
 
             var world = new World();
 
-            string[] nodes    = { Capitol, Hub, Frontier, Port, South, Outpost };
+            string[] nodes = { Capitol, Hub, Frontier, Port, South, Outpost };
             string[] factions = { Red, Blue };
-            string[] items    = { "ore", "water", "grain" };
+            string[] items = { "ore", "water", "grain" };
 
             for (int tick = 0; tick < 100; tick++)
             {
                 // Random injection every 5 ticks
                 if (tick % 5 == 0)
                 {
-                    string node    = nodes[rng.NextInt(0, nodes.Length)];
+                    string node = nodes[rng.NextInt(0, nodes.Length)];
                     string faction = factions[rng.NextInt(0, factions.Length)];
-                    string item    = items[rng.NextInt(0, items.Length)];
-                    float  v       = rng.NextFloat(0f, 2f);
+                    string item = items[rng.NextInt(0, items.Length)];
+                    float v = rng.NextFloat(0f, 2f);
 
                     world.Economy.InjectTrade(node, item, v);
                     world.Combat.CommitForce(node, faction, rng.NextFloat(0f, 1f));
@@ -472,10 +472,10 @@ namespace Odengine.Tests.Scenarios
         {
             string RunAndHash(uint seed)
             {
-                var rng   = new DeterministicRng(seed);
+                var rng = new DeterministicRng(seed);
                 var world = new World();
 
-                string[] nodes    = { Capitol, Hub, Frontier, Port, South, Outpost };
+                string[] nodes = { Capitol, Hub, Frontier, Port, South, Outpost };
                 string[] factions = { Red, Blue };
 
                 for (int tick = 0; tick < 60; tick++)

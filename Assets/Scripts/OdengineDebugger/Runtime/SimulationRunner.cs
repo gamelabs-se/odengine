@@ -185,32 +185,32 @@ public sealed class SimulationRunner : MonoBehaviour
         // ── Combat ────────────────────────────────────────────────────────
         var combatProfile = new FieldProfile("combat.demo")
         {
-            PropagationRate     = 0.02f,  // combat spreads slowly to adjacent nodes
-            DecayRate           = 0.20f,  // dissipates without reinforcement
+            PropagationRate = 0.02f,  // combat spreads slowly to adjacent nodes
+            DecayRate = 0.20f,  // dissipates without reinforcement
             EdgeResistanceScale = 2f,     // high resistance — combat doesn't travel far
-            MinLogAmpClamp      = 0f,     // no negative combat intensity
-            MaxLogAmpClamp      = 8f,
-            LogEpsilon          = 0.0001f,
+            MinLogAmpClamp = 0f,     // no negative combat intensity
+            MaxLogAmpClamp = 8f,
+            LogEpsilon = 0.0001f,
         };
         _combat = new CombatSystem(_dim, combatProfile, new CombatConfig
         {
-            AttritionRate  = 0.25f,
+            AttritionRate = 0.25f,
             ActiveThreshold = 0.0001f,
         });
 
         // Seed an initial engagement: red vs blue at north
-        _combat.CommitForce(North, FactionRed,  1.5f);
+        _combat.CommitForce(North, FactionRed, 1.5f);
         _combat.CommitForce(North, FactionBlue, 1.0f);
 
         // ── Intel ─────────────────────────────────────────────────────────
         var intelProfile = new FieldProfile("intel.demo")
         {
-            PropagationRate     = 0.05f,  // scouts spread awareness to neighbours
-            DecayRate           = 0.06f,  // coverage fades without patrols
+            PropagationRate = 0.05f,  // scouts spread awareness to neighbours
+            DecayRate = 0.06f,  // coverage fades without patrols
             EdgeResistanceScale = 1f,
-            MinLogAmpClamp      = -5f,
-            MaxLogAmpClamp      =  5f,
-            LogEpsilon          = 0.0001f,
+            MinLogAmpClamp = -5f,
+            MaxLogAmpClamp = 5f,
+            LogEpsilon = 0.0001f,
         };
         _intel = new IntelSystem(_dim, intelProfile, new IntelConfig
         {
@@ -218,10 +218,10 @@ public sealed class SimulationRunner : MonoBehaviour
         });
 
         // Seed: red covers hub+west+north, blue covers east+south
-        _intel.DeploySensor(Hub,   FactionRed,  2f);
-        _intel.DeploySensor(West,  FactionRed,  1.5f);
-        _intel.DeploySensor(North, FactionRed,  0.8f);
-        _intel.DeploySensor(East,  FactionBlue, 2f);
+        _intel.DeploySensor(Hub, FactionRed, 2f);
+        _intel.DeploySensor(West, FactionRed, 1.5f);
+        _intel.DeploySensor(North, FactionRed, 0.8f);
+        _intel.DeploySensor(East, FactionBlue, 2f);
         _intel.DeploySensor(South, FactionBlue, 1.5f);
 
         // ── Coupling rules ────────────────────────────────────────────────

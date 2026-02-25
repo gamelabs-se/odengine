@@ -14,10 +14,10 @@ namespace Odengine.Tests.Modules.Coupling
         private static FieldProfile MakeProfile(string id, float decay = 0f) =>
             new FieldProfile(id)
             {
-                LogEpsilon    = 0.0001f,
+                LogEpsilon = 0.0001f,
                 MinLogAmpClamp = -10f,
-                MaxLogAmpClamp =  10f,
-                DecayRate     = decay,
+                MaxLogAmpClamp = 10f,
+                DecayRate = decay,
             };
 
         private static Dimension MakeDimension(params string[] nodeIds)
@@ -278,7 +278,7 @@ namespace Odengine.Tests.Modules.Coupling
             var src = dim.AddField("src", MakeProfile("sp"));
             var dst = dim.AddField("dst", MakeProfile("dp"));
             src.AddLogAmp("a", "ore", 2f);
-            dst.AddLogAmp("a", "ore",   0.5f);
+            dst.AddLogAmp("a", "ore", 0.5f);
             dst.AddLogAmp("a", "water", 0.5f);
 
             var rules = new List<CouplingRule>
@@ -294,7 +294,7 @@ namespace Odengine.Tests.Modules.Coupling
 
             CouplingProcessor.Step(dim, rules, 1f);
 
-            Assert.That(dst.GetLogAmp("a", "ore"),   Is.EqualTo(2.5f).Within(1e-4f));
+            Assert.That(dst.GetLogAmp("a", "ore"), Is.EqualTo(2.5f).Within(1e-4f));
             Assert.That(dst.GetLogAmp("a", "water"), Is.EqualTo(0.5f).Within(1e-4f)); // untouched
         }
 
@@ -304,8 +304,8 @@ namespace Odengine.Tests.Modules.Coupling
             var dim = MakeDimension("a");
             var src = dim.AddField("src", MakeProfile("sp"));
             var dst = dim.AddField("dst", MakeProfile("dp"));
-            src.AddLogAmp("a", "x",     2f);
-            dst.AddLogAmp("a", "ore",   1f);
+            src.AddLogAmp("a", "x", 2f);
+            dst.AddLogAmp("a", "ore", 1f);
             dst.AddLogAmp("a", "water", 0.5f);
 
             var rules = new List<CouplingRule>
@@ -322,7 +322,7 @@ namespace Odengine.Tests.Modules.Coupling
             CouplingProcessor.Step(dim, rules, 1f);
 
             // src=2.0, ×(-0.5)=-1.0 injected into BOTH "ore" and "water"
-            Assert.That(dst.GetLogAmp("a", "ore"),   Is.EqualTo(0f).Within(1e-4f));   // 1.0 - 1.0
+            Assert.That(dst.GetLogAmp("a", "ore"), Is.EqualTo(0f).Within(1e-4f));   // 1.0 - 1.0
             Assert.That(dst.GetLogAmp("a", "water"), Is.EqualTo(-0.5f).Within(1e-4f)); // 0.5 - 1.0
         }
 
@@ -358,9 +358,9 @@ namespace Odengine.Tests.Modules.Coupling
             var src = dim.AddField("src", MakeProfile("sp"));
             var dst = dim.AddField("dst", MakeProfile("dp"));
             src.AddLogAmp("a", "x", 1f);
-            dst.AddLogAmp("a", "ore",   0.5f);
+            dst.AddLogAmp("a", "ore", 0.5f);
             dst.AddLogAmp("a", "water", 0.5f);
-            dst.AddLogAmp("a", "food",  0.5f);
+            dst.AddLogAmp("a", "food", 0.5f);
 
             var rules = new List<CouplingRule>
             {
@@ -375,9 +375,9 @@ namespace Odengine.Tests.Modules.Coupling
 
             CouplingProcessor.Step(dim, rules, 1f);
 
-            Assert.That(dst.GetLogAmp("a", "ore"),   Is.EqualTo(1.5f).Within(1e-4f));
+            Assert.That(dst.GetLogAmp("a", "ore"), Is.EqualTo(1.5f).Within(1e-4f));
             Assert.That(dst.GetLogAmp("a", "water"), Is.EqualTo(1.5f).Within(1e-4f));
-            Assert.That(dst.GetLogAmp("a", "food"),  Is.EqualTo(0.5f).Within(1e-4f)); // untouched
+            Assert.That(dst.GetLogAmp("a", "food"), Is.EqualTo(0.5f).Within(1e-4f)); // untouched
         }
 
         [Test]
@@ -439,7 +439,7 @@ namespace Odengine.Tests.Modules.Coupling
             var dim = MakeDimension("a");
             var src = dim.AddField("src", MakeProfile("sp"));
             var dst = dim.AddField("dst", MakeProfile("dp"));
-            src.AddLogAmp("a", "red",  1f);
+            src.AddLogAmp("a", "red", 1f);
             src.AddLogAmp("a", "blue", 2f);
 
             var rules = new List<CouplingRule>
@@ -455,7 +455,7 @@ namespace Odengine.Tests.Modules.Coupling
 
             CouplingProcessor.Step(dim, rules, 1f);
 
-            Assert.That(dst.GetLogAmp("a", "red"),  Is.EqualTo(1f).Within(1e-4f));
+            Assert.That(dst.GetLogAmp("a", "red"), Is.EqualTo(1f).Within(1e-4f));
             Assert.That(dst.GetLogAmp("a", "blue"), Is.EqualTo(2f).Within(1e-4f));
         }
 
@@ -575,7 +575,7 @@ namespace Odengine.Tests.Modules.Coupling
         public void Step_MultipleRules_AllApplied_ReadFromOriginalState()
         {
             var dim = MakeDimension("a");
-            var war   = dim.AddField("war",   MakeProfile("wp"));
+            var war = dim.AddField("war", MakeProfile("wp"));
             var avail = dim.AddField("avail", MakeProfile("ap"));
             var price = dim.AddField("price", MakeProfile("pp"));
 
@@ -611,14 +611,14 @@ namespace Odengine.Tests.Modules.Coupling
         [Test]
         public void Step_TwoRulesToSameTarget_DeltasAccumulate()
         {
-            var dim  = MakeDimension("a");
+            var dim = MakeDimension("a");
             var srcA = dim.AddField("srcA", MakeProfile("sa"));
             var srcB = dim.AddField("srcB", MakeProfile("sb"));
-            var dst  = dim.AddField("dst",  MakeProfile("dp"));
+            var dst = dim.AddField("dst", MakeProfile("dp"));
 
             srcA.AddLogAmp("a", "x", 1f);
             srcB.AddLogAmp("a", "x", 2f);
-            dst.AddLogAmp("a",  "x", 0.5f);
+            dst.AddLogAmp("a", "x", 0.5f);
 
             var rules = new List<CouplingRule>
             {
@@ -758,11 +758,11 @@ namespace Odengine.Tests.Modules.Coupling
         public void Integration_WarExposureReducesAvailability()
         {
             var dim = MakeDimension("north");
-            var warField   = dim.AddField("war.exposure",          MakeProfile("wp"));
-            var availField = dim.AddField("economy.availability",  MakeProfile("ep"));
+            var warField = dim.AddField("war.exposure", MakeProfile("wp"));
+            var availField = dim.AddField("economy.availability", MakeProfile("ep"));
 
-            warField.AddLogAmp("north", "x",     3f);
-            availField.AddLogAmp("north", "ore",   1f);
+            warField.AddLogAmp("north", "x", 3f);
+            availField.AddLogAmp("north", "ore", 1f);
             availField.AddLogAmp("north", "water", 0.8f);
 
             var rules = new List<CouplingRule>
@@ -779,7 +779,7 @@ namespace Odengine.Tests.Modules.Coupling
             CouplingProcessor.Step(dim, rules, 1f);
 
             // war=3.0, Linear(-0.2), dt=1.0 → inject -0.6 into each active avail channel
-            Assert.That(availField.GetLogAmp("north", "ore"),   Is.EqualTo(0.4f).Within(1e-4f));
+            Assert.That(availField.GetLogAmp("north", "ore"), Is.EqualTo(0.4f).Within(1e-4f));
             Assert.That(availField.GetLogAmp("north", "water"), Is.EqualTo(0.2f).Within(1e-4f));
         }
 
@@ -787,7 +787,7 @@ namespace Odengine.Tests.Modules.Coupling
         public void Integration_NoWar_EconomyCompletelyUnaffected()
         {
             var dim = MakeDimension("north");
-            var warField   = dim.AddField("war.exposure",         MakeProfile("wp"));
+            var warField = dim.AddField("war.exposure", MakeProfile("wp"));
             var availField = dim.AddField("economy.availability", MakeProfile("ep"));
             availField.AddLogAmp("north", "ore", 1.5f);
             // war field has no entries
@@ -813,8 +813,8 @@ namespace Odengine.Tests.Modules.Coupling
         public void Integration_WarRaisesPrice_AndReducesAvailability_Simultaneously()
         {
             var dim = MakeDimension("north");
-            var warField   = dim.AddField("war.exposure",          MakeProfile("wp"));
-            var availField = dim.AddField("economy.availability",  MakeProfile("ep"));
+            var warField = dim.AddField("war.exposure", MakeProfile("wp"));
+            var availField = dim.AddField("economy.availability", MakeProfile("ep"));
             var priceField = dim.AddField("economy.pricePressure", MakeProfile("pp"));
 
             warField.AddLogAmp("north", "x", 2f);
@@ -851,9 +851,9 @@ namespace Odengine.Tests.Modules.Coupling
         {
             var dim = MakeDimension("north");
             var presenceField = dim.AddField("faction.presence", MakeProfile("fp"));
-            var warField      = dim.AddField("war.exposure",     MakeProfile("wp"));
+            var warField = dim.AddField("war.exposure", MakeProfile("wp"));
 
-            presenceField.AddLogAmp("north", "red",  2f);
+            presenceField.AddLogAmp("north", "red", 2f);
             presenceField.AddLogAmp("north", "blue", 1f);
             warField.AddLogAmp("north", "x", 3f);
 
@@ -885,14 +885,14 @@ namespace Odengine.Tests.Modules.Coupling
             //   → 0.4 × val = -0.24  → val_eq = -0.6
             // (Continuous-time formula -R×war/D = -1.0 only holds as dt→0)
             var dim = MakeDimension("north");
-            var warField   = dim.AddField("war.exposure", MakeProfile("wp", decay: 0f));
+            var warField = dim.AddField("war.exposure", MakeProfile("wp", decay: 0f));
             var availField = dim.AddField("economy.availability",
                 new FieldProfile("ep")
                 {
-                    LogEpsilon     = 0.0001f,
-                    DecayRate      = 0.4f,
+                    LogEpsilon = 0.0001f,
+                    DecayRate = 0.4f,
                     MinLogAmpClamp = -10f,
-                    MaxLogAmpClamp =  10f,
+                    MaxLogAmpClamp = 10f,
                 });
 
             warField.AddLogAmp("north", "x", 2f);     // constant war (no decay)

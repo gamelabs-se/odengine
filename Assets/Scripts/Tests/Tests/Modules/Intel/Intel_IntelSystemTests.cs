@@ -14,18 +14,18 @@ namespace Odengine.Tests.Modules.Intel
         // ── Helpers ────────────────────────────────────────────────────────
 
         private static FieldProfile MakeProfile(
-            string id            = "intel.coverage",
-            float  decay         = 0.05f,
-            float  propagation   = 0f,
-            float  edgeResistance = 1f) =>
+            string id = "intel.coverage",
+            float decay = 0.05f,
+            float propagation = 0f,
+            float edgeResistance = 1f) =>
             new FieldProfile(id)
             {
-                LogEpsilon          = 0.0001f,
-                DecayRate           = decay,
-                PropagationRate     = propagation,
+                LogEpsilon = 0.0001f,
+                DecayRate = decay,
+                PropagationRate = propagation,
                 EdgeResistanceScale = edgeResistance,
-                MinLogAmpClamp      = -10f,
-                MaxLogAmpClamp      =  10f,
+                MinLogAmpClamp = -10f,
+                MaxLogAmpClamp = 10f,
             };
 
         private static Dimension MakeDimension(params string[] nodeIds)
@@ -36,14 +36,14 @@ namespace Odengine.Tests.Modules.Intel
         }
 
         private static IntelSystem MakeIntel(
-            Dimension   dim,
-            float       decay         = 0.05f,
-            float       propagation   = 0f,
-            float       threshold     = 0.0001f,
-            float       edgeResistance = 1f)
+            Dimension dim,
+            float decay = 0.05f,
+            float propagation = 0f,
+            float threshold = 0.0001f,
+            float edgeResistance = 1f)
         {
             var profile = MakeProfile(decay: decay, propagation: propagation, edgeResistance: edgeResistance);
-            var config  = new IntelConfig { ActiveCoverageThreshold = threshold };
+            var config = new IntelConfig { ActiveCoverageThreshold = threshold };
             return new IntelSystem(dim, profile, config);
         }
 
@@ -54,7 +54,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void Constructor_RegistersCoverageFieldInDimension()
         {
-            var dim   = MakeDimension("a");
+            var dim = MakeDimension("a");
             var intel = MakeIntel(dim);
             // No throw means the field was registered
             Assert.DoesNotThrow(() => dim.GetField("intel.coverage"));
@@ -78,7 +78,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void Constructor_DefaultConfig_ThresholdApplied()
         {
-            var dim   = MakeDimension("a");
+            var dim = MakeDimension("a");
             var intel = new IntelSystem(dim, MakeProfile());
             // Below default ActiveCoverageThreshold = 0.0001f
             intel.DeploySensor("a", "red", 0.00005f);
@@ -92,7 +92,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void DeploySensor_SetsLogAmpAtNode()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             intel.DeploySensor("hub", "red", 2f);
 
@@ -102,7 +102,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void DeploySensor_Accumulates_MultipleCallsSameFaction()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             intel.DeploySensor("hub", "red", 1f);
             intel.DeploySensor("hub", "red", 0.5f);
@@ -113,19 +113,19 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void DeploySensor_MultipleFactions_IndependentChannels()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
-            intel.DeploySensor("hub", "red",  2f);
+            intel.DeploySensor("hub", "red", 2f);
             intel.DeploySensor("hub", "blue", 1.5f);
 
-            Assert.That(intel.Coverage.GetLogAmp("hub", "red"),  Is.EqualTo(2f).Within(1e-5f));
+            Assert.That(intel.Coverage.GetLogAmp("hub", "red"), Is.EqualTo(2f).Within(1e-5f));
             Assert.That(intel.Coverage.GetLogAmp("hub", "blue"), Is.EqualTo(1.5f).Within(1e-5f));
         }
 
         [Test]
         public void DeploySensor_MultipleNodes_IndependentEntries()
         {
-            var dim   = MakeDimension("north", "south");
+            var dim = MakeDimension("north", "south");
             var intel = MakeIntel(dim);
             intel.DeploySensor("north", "red", 3f);
             intel.DeploySensor("south", "red", 1f);
@@ -137,7 +137,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void DeploySensor_EmptyNodeId_Throws()
         {
-            var dim   = MakeDimension("a");
+            var dim = MakeDimension("a");
             var intel = MakeIntel(dim);
             Assert.Throws<ArgumentException>(() => intel.DeploySensor("", "red", 1f));
         }
@@ -145,7 +145,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void DeploySensor_EmptyFactionId_Throws()
         {
-            var dim   = MakeDimension("a");
+            var dim = MakeDimension("a");
             var intel = MakeIntel(dim);
             Assert.Throws<ArgumentException>(() => intel.DeploySensor("a", "", 1f));
         }
@@ -157,7 +157,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetCoverage_NoSensors_ReturnsZero()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             Assert.That(intel.GetCoverage("hub", "red"), Is.EqualTo(0f).Within(1e-7f));
         }
@@ -165,7 +165,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetCoverage_AfterDeploySensor_MatchesLogAmp()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             intel.DeploySensor("hub", "red", 1.8f);
             Assert.That(intel.GetCoverage("hub", "red"), Is.EqualTo(1.8f).Within(1e-5f));
@@ -174,7 +174,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetCoverage_EmptyNodeId_Throws()
         {
-            var dim   = MakeDimension("a");
+            var dim = MakeDimension("a");
             var intel = MakeIntel(dim);
             Assert.Throws<ArgumentException>(() => intel.GetCoverage("", "red"));
         }
@@ -182,7 +182,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetCoverage_EmptyFactionId_Throws()
         {
-            var dim   = MakeDimension("a");
+            var dim = MakeDimension("a");
             var intel = MakeIntel(dim);
             Assert.Throws<ArgumentException>(() => intel.GetCoverage("a", ""));
         }
@@ -194,7 +194,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetCoverageMultiplier_NoCoverage_ReturnsOne()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             Assert.That(intel.GetCoverageMultiplier("hub", "red"), Is.EqualTo(1f).Within(1e-5f));
         }
@@ -202,7 +202,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetCoverageMultiplier_MatchesExpLogAmp()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             intel.DeploySensor("hub", "red", 1f); // exp(1) ≈ 2.718
             Assert.That(intel.GetCoverageMultiplier("hub", "red"),
@@ -216,7 +216,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void IsTracked_BelowThreshold_ReturnsFalse()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, threshold: 0.5f);
             intel.DeploySensor("hub", "red", 0.3f); // below threshold
             Assert.That(intel.IsTracked("hub", "red"), Is.False);
@@ -225,7 +225,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void IsTracked_AtOrAboveThreshold_ReturnsTrue()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, threshold: 0.5f);
             intel.DeploySensor("hub", "red", 0.5f); // exactly at threshold
             Assert.That(intel.IsTracked("hub", "red"), Is.True);
@@ -234,7 +234,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void IsTracked_NoSensors_ReturnsFalse()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             Assert.That(intel.IsTracked("hub", "red"), Is.False);
         }
@@ -242,12 +242,12 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void IsTracked_OneFactionTracked_OtherNot()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, threshold: 0.5f);
-            intel.DeploySensor("hub", "red",  2f);
+            intel.DeploySensor("hub", "red", 2f);
             // blue has no sensors
 
-            Assert.That(intel.IsTracked("hub", "red"),  Is.True);
+            Assert.That(intel.IsTracked("hub", "red"), Is.True);
             Assert.That(intel.IsTracked("hub", "blue"), Is.False);
         }
 
@@ -258,7 +258,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetDominantObserver_NoCoverage_ReturnsNull()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             Assert.That(intel.GetDominantObserver("hub"), Is.Null);
         }
@@ -266,7 +266,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetDominantObserver_SingleFaction_ReturnsThatFaction()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             intel.DeploySensor("hub", "red", 2f);
             Assert.That(intel.GetDominantObserver("hub"), Is.EqualTo("red"));
@@ -275,9 +275,9 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetDominantObserver_ReturnsHighestLogAmpFaction()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
-            intel.DeploySensor("hub", "red",  1f);
+            intel.DeploySensor("hub", "red", 1f);
             intel.DeploySensor("hub", "blue", 3f);
             Assert.That(intel.GetDominantObserver("hub"), Is.EqualTo("blue"));
         }
@@ -285,9 +285,9 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetDominantObserver_DifferentNodes_Independent()
         {
-            var dim   = MakeDimension("north", "south");
+            var dim = MakeDimension("north", "south");
             var intel = MakeIntel(dim);
-            intel.DeploySensor("north", "red",  3f);
+            intel.DeploySensor("north", "red", 3f);
             intel.DeploySensor("south", "blue", 2f);
 
             Assert.That(intel.GetDominantObserver("north"), Is.EqualTo("red"));
@@ -297,7 +297,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetDominantObserver_EmptyNodeId_Throws()
         {
-            var dim   = MakeDimension("a");
+            var dim = MakeDimension("a");
             var intel = MakeIntel(dim);
             Assert.Throws<ArgumentException>(() => intel.GetDominantObserver(""));
         }
@@ -309,7 +309,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetTrackingFactions_NoCoverage_ReturnsEmpty()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             Assert.That(intel.GetTrackingFactions("hub").Count, Is.EqualTo(0));
         }
@@ -317,9 +317,9 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetTrackingFactions_OnlyAboveThreshold()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, threshold: 1f);
-            intel.DeploySensor("hub", "red",  2f);   // above
+            intel.DeploySensor("hub", "red", 2f);   // above
             intel.DeploySensor("hub", "blue", 0.5f); // below threshold
 
             var factions = intel.GetTrackingFactions("hub");
@@ -330,10 +330,10 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetTrackingFactions_MultipleFactions_AllAboveThreshold()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, threshold: 0.5f);
-            intel.DeploySensor("hub", "red",   2f);
-            intel.DeploySensor("hub", "blue",  1f);
+            intel.DeploySensor("hub", "red", 2f);
+            intel.DeploySensor("hub", "blue", 1f);
             intel.DeploySensor("hub", "green", 0.8f);
 
             var factions = intel.GetTrackingFactions("hub");
@@ -343,11 +343,11 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetTrackingFactions_IsSortedOrdinal()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, threshold: 0.0001f);
-            intel.DeploySensor("hub", "zulu",  1f);
+            intel.DeploySensor("hub", "zulu", 1f);
             intel.DeploySensor("hub", "alpha", 1f);
-            intel.DeploySensor("hub", "mike",  1f);
+            intel.DeploySensor("hub", "mike", 1f);
 
             var factions = intel.GetTrackingFactions("hub");
             Assert.That(factions[0], Is.EqualTo("alpha"));
@@ -358,7 +358,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetTrackingFactions_EmptyNodeId_Throws()
         {
-            var dim   = MakeDimension("a");
+            var dim = MakeDimension("a");
             var intel = MakeIntel(dim);
             Assert.Throws<ArgumentException>(() => intel.GetTrackingFactions(""));
         }
@@ -370,7 +370,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetCoveredNodeIds_NoCoverage_ReturnsEmpty()
         {
-            var dim   = MakeDimension("hub", "port");
+            var dim = MakeDimension("hub", "port");
             var intel = MakeIntel(dim);
             Assert.That(intel.GetCoveredNodeIds().Count, Is.EqualTo(0));
         }
@@ -378,9 +378,9 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetCoveredNodeIds_OnlyActiveNodes()
         {
-            var dim   = MakeDimension("hub", "port", "frontier");
+            var dim = MakeDimension("hub", "port", "frontier");
             var intel = MakeIntel(dim);
-            intel.DeploySensor("hub",      "red",  1f);
+            intel.DeploySensor("hub", "red", 1f);
             intel.DeploySensor("frontier", "blue", 1f);
             // "port" has no coverage
 
@@ -393,7 +393,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetCoveredNodeIds_IsSortedOrdinal()
         {
-            var dim   = MakeDimension("z-world", "a-world", "m-world");
+            var dim = MakeDimension("z-world", "a-world", "m-world");
             var intel = MakeIntel(dim);
             intel.DeploySensor("z-world", "red", 1f);
             intel.DeploySensor("a-world", "red", 1f);
@@ -412,7 +412,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetTotalCoverage_NoCoverage_ReturnsZero()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
             Assert.That(intel.GetTotalCoverage("hub"), Is.EqualTo(0f).Within(1e-7f));
         }
@@ -420,9 +420,9 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetTotalCoverage_SumsAllFactions()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim);
-            intel.DeploySensor("hub", "red",  2f);
+            intel.DeploySensor("hub", "red", 2f);
             intel.DeploySensor("hub", "blue", 1.5f);
             // total = 2.0 + 1.5 = 3.5
             Assert.That(intel.GetTotalCoverage("hub"), Is.EqualTo(3.5f).Within(1e-4f));
@@ -431,7 +431,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void GetTotalCoverage_EmptyNodeId_Throws()
         {
-            var dim   = MakeDimension("a");
+            var dim = MakeDimension("a");
             var intel = MakeIntel(dim);
             Assert.Throws<ArgumentException>(() => intel.GetTotalCoverage(""));
         }
@@ -443,7 +443,7 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void Tick_ZeroDt_NoCoverageChange()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, decay: 0.5f);
             intel.DeploySensor("hub", "red", 3f);
 
@@ -456,7 +456,7 @@ namespace Odengine.Tests.Modules.Intel
         public void Tick_NoPropagation_DecaysOverTime()
         {
             // With propagation=0, decay=0.1, coverage should decrease
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, decay: 0.1f, propagation: 0f);
             intel.DeploySensor("hub", "red", 2f);
 
@@ -475,7 +475,7 @@ namespace Odengine.Tests.Modules.Intel
             // Halving dt should produce proportionally less decay
             static float RunTick(float dt)
             {
-                var dim   = MakeDimension("hub");
+                var dim = MakeDimension("hub");
                 var intel = MakeIntel(dim, decay: 0.2f, propagation: 0f);
                 intel.DeploySensor("hub", "red", 4f);
                 intel.Tick(dt);
@@ -492,17 +492,17 @@ namespace Odengine.Tests.Modules.Intel
         [Test]
         public void Tick_MultipleFactions_IndependentDecay()
         {
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, decay: 0.1f, propagation: 0f);
-            intel.DeploySensor("hub", "red",  4f);
+            intel.DeploySensor("hub", "red", 4f);
             intel.DeploySensor("hub", "blue", 2f);
 
             intel.Tick(1f);
 
-            float redAfter  = intel.GetCoverage("hub", "red");
+            float redAfter = intel.GetCoverage("hub", "red");
             float blueAfter = intel.GetCoverage("hub", "blue");
 
-            Assert.That(redAfter,  Is.LessThan(4f));
+            Assert.That(redAfter, Is.LessThan(4f));
             Assert.That(blueAfter, Is.LessThan(2f));
 
             // Relative ordering must be preserved (red started higher)
@@ -558,7 +558,7 @@ namespace Odengine.Tests.Modules.Intel
                 return intel.GetCoverage("beta", "red");
             }
 
-            float lowRes  = Coverage(0f);
+            float lowRes = Coverage(0f);
             float highRes = Coverage(2f);
 
             Assert.That(lowRes, Is.GreaterThan(highRes),
@@ -575,13 +575,13 @@ namespace Odengine.Tests.Modules.Intel
             string RunAndHash()
             {
                 var dim = MakeDimension("hub", "port", "frontier");
-                dim.AddEdge("hub",      "port",     resistance: 0.5f);
-                dim.AddEdge("port",     "frontier", resistance: 1f);
+                dim.AddEdge("hub", "port", resistance: 0.5f);
+                dim.AddEdge("port", "frontier", resistance: 1f);
                 var intel = MakeIntel(dim, decay: 0.08f, propagation: 0.2f);
 
-                intel.DeploySensor("hub",      "red",  3f);
-                intel.DeploySensor("port",     "blue", 2f);
-                intel.DeploySensor("frontier", "red",  1f);
+                intel.DeploySensor("hub", "red", 3f);
+                intel.DeploySensor("port", "blue", 2f);
+                intel.DeploySensor("frontier", "red", 1f);
 
                 for (int i = 0; i < 20; i++)
                     intel.Tick(0.1f);
@@ -596,11 +596,11 @@ namespace Odengine.Tests.Modules.Intel
         public void MultiTick_NoNanOrInfinity()
         {
             var dim = MakeDimension("hub", "port", "frontier");
-            dim.AddEdge("hub",  "port",     resistance: 0.5f);
+            dim.AddEdge("hub", "port", resistance: 0.5f);
             dim.AddEdge("port", "frontier", resistance: 0.8f);
 
             var intel = MakeIntel(dim, decay: 0.1f, propagation: 0.3f);
-            intel.DeploySensor("hub",  "red",  4f);
+            intel.DeploySensor("hub", "red", 4f);
             intel.DeploySensor("port", "blue", 2f);
 
             for (int tick = 0; tick < 100; tick++)
@@ -612,7 +612,7 @@ namespace Odengine.Tests.Modules.Intel
                     foreach (var channel in intel.Coverage.GetActiveChannelIdsSortedForNode(nodeId))
                     {
                         float v = intel.Coverage.GetLogAmp(nodeId, channel);
-                        Assert.That(float.IsNaN(v),      Is.False, $"NaN at ({nodeId}, {channel}) tick {tick}");
+                        Assert.That(float.IsNaN(v), Is.False, $"NaN at ({nodeId}, {channel}) tick {tick}");
                         Assert.That(float.IsInfinity(v), Is.False, $"Inf at ({nodeId}, {channel}) tick {tick}");
                     }
                 }
@@ -623,7 +623,7 @@ namespace Odengine.Tests.Modules.Intel
         public void MultiTick_WithReinforcementEvery10Ticks_CoverageStable()
         {
             // If coverage is reinforced often enough, it should not vanish
-            var dim   = MakeDimension("hub");
+            var dim = MakeDimension("hub");
             var intel = MakeIntel(dim, decay: 0.2f, propagation: 0f);
 
             for (int tick = 0; tick < 50; tick++)
@@ -651,12 +651,12 @@ namespace Odengine.Tests.Modules.Intel
             // Build a faction-presence field acting as the source
             var factionProfile = new FieldProfile("faction.presence")
             {
-                LogEpsilon        = 0.0001f,
-                DecayRate         = 0f,
-                PropagationRate   = 0f,
+                LogEpsilon = 0.0001f,
+                DecayRate = 0f,
+                PropagationRate = 0f,
                 EdgeResistanceScale = 1f,
-                MinLogAmpClamp    = -10f,
-                MaxLogAmpClamp    =  10f,
+                MinLogAmpClamp = -10f,
+                MaxLogAmpClamp = 10f,
             };
             var factionField = dim.GetOrCreateField("faction.presence", factionProfile);
             factionField.AddLogAmp("hub", "red", 2f);
@@ -666,10 +666,10 @@ namespace Odengine.Tests.Modules.Intel
             // Manually simulate coupling: faction.presence → intel.coverage
             // Linear(0.05f × dt) applied each tick
             const float couplingScale = 0.05f;
-            const float dt            = 1f;
+            const float dt = 1f;
 
             float presenceLogAmp = factionField.GetLogAmp("hub", "red");
-            float impulse        = presenceLogAmp * couplingScale * dt;
+            float impulse = presenceLogAmp * couplingScale * dt;
             intel.DeploySensor("hub", "red", impulse);
 
             Assert.That(intel.IsTracked("hub", "red"), Is.True,
@@ -685,13 +685,13 @@ namespace Odengine.Tests.Modules.Intel
         {
             var rng = new DeterministicRng(seed: 0xA1B2C3);
 
-            const int nodeCount    = 10;
+            const int nodeCount = 10;
             const int factionCount = 3;
-            const int tickCount    = 50;
+            const int tickCount = 50;
 
-            string[] nodeIds    = new string[nodeCount];
+            string[] nodeIds = new string[nodeCount];
             string[] factionIds = new string[factionCount];
-            for (int i = 0; i < nodeCount;    i++) nodeIds[i]    = $"n{i}";
+            for (int i = 0; i < nodeCount; i++) nodeIds[i] = $"n{i}";
             for (int i = 0; i < factionCount; i++) factionIds[i] = $"f{i}";
 
             var dim = MakeDimension(nodeIds);
@@ -703,7 +703,7 @@ namespace Odengine.Tests.Modules.Intel
             // Seed sensors
             for (int i = 0; i < 5; i++)
             {
-                string nodeId    = nodeIds[rng.NextInt(0, nodeCount)];
+                string nodeId = nodeIds[rng.NextInt(0, nodeCount)];
                 string factionId = factionIds[rng.NextInt(0, factionCount)];
                 intel.DeploySensor(nodeId, factionId, rng.NextFloat(0f, 3f));
             }
@@ -717,7 +717,7 @@ namespace Odengine.Tests.Modules.Intel
                     foreach (var channel in intel.Coverage.GetActiveChannelIdsSortedForNode(nodeId))
                     {
                         float v = intel.Coverage.GetLogAmp(nodeId, channel);
-                        Assert.That(float.IsNaN(v),      Is.False, $"NaN at tick {tick}");
+                        Assert.That(float.IsNaN(v), Is.False, $"NaN at tick {tick}");
                         Assert.That(float.IsInfinity(v), Is.False, $"Inf at tick {tick}");
                     }
                 }
