@@ -191,7 +191,7 @@ namespace Odengine.Tests.Scenarios
                 {
                     ExposureGrowthRate = 0.60f,  // 0.06/tick at dt=0.1 → 3.6 at 60 ticks
                     AmbientDecayRate = 0.01f,    // ceiling 0.001/tick — low enough for propagated exposure to accumulate
-                    CeasefireDecayRate = 0.20f,
+                    CeasefireDecayRate = 2.0f,   // 0.20/tick at dt=0.1; beats max back-prop from neighbors (max ~0.094/tick)
                 };
                 War = new WarSystem(Dim, War(), WarCfg);
 
@@ -255,8 +255,8 @@ namespace Odengine.Tests.Scenarios
                     new CouplingRule("intel.coverage", "faction.influence")
                     {
                         InputChannelSelector  = "*",
-                        OutputChannelSelector = "*",
-                        Operator              = CouplingOperator.Linear(0.20f),  // strong enough to be measurable
+                        OutputChannelSelector = "same",  // "same" uses inputChannelId (e.g. "free"), creating entry if absent
+                        Operator              = CouplingOperator.Linear(0.20f),
                         ScaleByDeltaTime      = true,
                     },
                     // Dense scout networks pick up war-zone signals
