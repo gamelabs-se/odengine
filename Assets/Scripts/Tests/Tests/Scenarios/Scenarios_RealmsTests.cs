@@ -829,7 +829,11 @@ namespace Odengine.Tests.Scenarios
                 {
                     r.Combat.CommitForce(MinasTirith, Shadow, 2.5f);
                     r.Combat.CommitForce(MinasTirith, Free, 1.0f); // defenders
-                    r.Combat.CommitForce(Pelargir, Shadow, 1.5f); // naval blockade force
+                    // No CommitForce at Pelargir — the naval blockade is represented
+                    // by DeclareWar(Pelargir) alone. war.exposure → economy coupling
+                    // handles the economic damage; physical combat intensity at the
+                    // port would couple −0.12/tick into Free's presence there and
+                    // prevent meaningful measurement of faction recovery in Phase 4.
                 }
 
                 // Trade is disrupted — only partial injections possible under fire
